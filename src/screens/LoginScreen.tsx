@@ -200,6 +200,10 @@ export default function LoginScreen({navigation}: any) {
               <View style={styles.secureDot} />
               <Text style={styles.secureText}>256-bit AES Encrypted</Text>
             </View>
+            <View style={[styles.secureBadge, {backgroundColor: 'rgba(0, 180, 255, 0.08)', marginBottom: Spacing.sm}]}>
+              <View style={[styles.secureDot, {backgroundColor: Colors.primary}]} />
+              <Text style={[styles.secureText, {color: Colors.primary}]}>Device Verified ✓</Text>
+            </View>
             <Text style={styles.versionText}>v1.0.0</Text>
           </View>
         </ScrollView>
