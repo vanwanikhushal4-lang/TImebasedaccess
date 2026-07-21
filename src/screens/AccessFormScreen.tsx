@@ -11,14 +11,15 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  Share,
   Alert,
   Platform,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import axios from 'axios';
+import RNShare from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 
@@ -29,7 +30,7 @@ import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 // iOS Simulator can route to it directly. Android Emulator cannot, so we use the local proxy.
 // The backend server is hard-bound to 192.168.0.157 on port 9898.
 // We use the real LAN IP so physical devices on the network can connect.
-const API_URL = 'http://192.168.0.157:9898/api/offlinetba/generatePrivateKey';
+const API_URL = 'http://45.118.160.135:9898/api/offlinetba/generatePrivateKey';
 
 // ── Custom Wheel Picker ──
 const WheelPicker = ({ items, selectedValue, onValueChange }: { items: string[], selectedValue: string, onValueChange: (val: string) => void }) => {
@@ -169,18 +170,27 @@ export default function AccessFormScreen({navigation}: any) {
   const handleShare = async () => {
     try {
       const uri = await cardRef.current.capture();
-      await Share.share({
-        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
+      
+      const shareOptions = {
         title: 'ATM Access Key',
-        message: 'ATM Access Key — TimeBasedAccess',
-      });
-    } catch (e) {
-      Alert.alert('Error', 'Could not share the card.');
+        message: `Here is Private key "${privateKey}"`,
+        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
+        type: 'image/jpeg',
+      };
+      
+      await RNShare.open(shareOptions);
+    } catch (e: any) {
+      if (e.message !== 'User did not share') {
+        Alert.alert('Error', 'Could not share the card.');
+      }
     }
   };
 
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView 
+      style={styles.screen} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       <ScrollView
         contentContainerStyle={[
@@ -429,7 +439,7 @@ export default function AccessFormScreen({navigation}: any) {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

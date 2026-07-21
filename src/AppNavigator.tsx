@@ -4,6 +4,7 @@ import HomeScreen from './screens/HomeScreen';
 import AccountScreen from './screens/AccountScreen';
 import {Colors, FontSizes} from './theme/colors';
 import {View, Platform} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
 
@@ -43,6 +44,15 @@ const UserIcon = ({color}: {color: string}) => (
 );
 
 export default function AppNavigator({navigation}: any) {
+  const insets = useSafeAreaInsets();
+  
+  // Calculate dynamic bottom padding to prevent overlap with Android navigation bar
+  const bottomPadding = Platform.OS === 'ios' 
+    ? Math.max(insets.bottom, 20) 
+    : Math.max(insets.bottom, 10);
+    
+  const tabHeight = 60 + bottomPadding;
+
   const onLogout = () => {
     navigation.replace('Login');
   };
@@ -55,8 +65,8 @@ export default function AppNavigator({navigation}: any) {
           backgroundColor: Colors.surface,
           borderTopWidth: 1,
           borderTopColor: Colors.border,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: tabHeight,
+          paddingBottom: bottomPadding,
           paddingTop: 10,
           elevation: 0,
           shadowOpacity: 0,
