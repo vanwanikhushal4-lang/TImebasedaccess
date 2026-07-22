@@ -6,6 +6,8 @@ import {Colors, FontSizes} from './theme/colors';
 import {View, Platform} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const Tab = createBottomTabNavigator();
 
 // Tab icons (pure RN View — clean geometric shapes)
@@ -53,7 +55,10 @@ export default function AppNavigator({navigation}: any) {
     
   const tabHeight = 60 + bottomPadding;
 
-  const onLogout = () => {
+  const onLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('@auth_token');
+    } catch {}
     navigation.replace('Login');
   };
 

@@ -125,10 +125,23 @@ export default function AccessFormScreen({navigation}: any) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      } else {
+      if (!token) {
         console.log('[AccessFormScreen] WARNING: No @auth_token found in AsyncStorage!');
+        Alert.alert(
+          'Authentication Required',
+          'No login session token was found. Please log out and log in again to generate an access token.',
+          [
+            {
+              text: 'Go to Login',
+              onPress: () => navigation.replace('Login'),
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+          ]
+        );
+        return;
       }
 
       console.log('[AccessFormScreen] Request Headers:', JSON.stringify(headers));
