@@ -146,15 +146,33 @@ export default function LoginScreen({navigation}: any) {
       console.log('[LoginScreen] Login evaluation isSuccess:', isSuccess);
 
       if (isSuccess) {
-        const token = data?.response?.token || data?.token || data?.response?.accessToken || data?.accessToken;
+        let token: string | null = null;
+        if (typeof data?.response === 'object' && data?.response !== null) {
+          token = data.response.token || data.response.accessToken || data.response.jwt;
+        } else if (typeof data?.response === 'string') {
+          try {
+            const parsed = JSON.parse(data.response);
+            token = parsed.token || parsed.accessToken || parsed.jwt;
+          } catch {
+            if (data.response.startsWith('eyJ')) token = data.response;
+          }
+        }
+        if (!token) {
+          token = data?.token || data?.accessToken || data?.jwt;
+        }
+
         if (token) {
           console.log('[LoginScreen] Storing Bearer Token in AsyncStorage:', token.substring(0, 20) + '...');
           await AsyncStorage.setItem('@auth_token', token);
+          console.log('[LoginScreen] Login SUCCESSFUL -> Navigating to MainTabs');
+          navigation.replace('MainTabs');
         } else {
-          console.log('[LoginScreen] Warning: Login succeeded but no token was found in response payload.');
+          console.log('[LoginScreen] ERROR: Login succeeded but no token was found in payload:', JSON.stringify(data));
+          Alert.alert(
+            'Authentication Error',
+            'The server response did not include a security token. Please contact support or check server logs.\n\nServer Response: ' + JSON.stringify(data),
+          );
         }
-        console.log('[LoginScreen] Login SUCCESSFUL -> Navigating to MainTabs');
-        navigation.replace('MainTabs');
       } else {
         const message =
           data?.response?.message ||
