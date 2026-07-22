@@ -14,14 +14,15 @@ import DeviceInfo from 'react-native-device-info';
 import {Platform} from 'react-native';
 
 // ── Configuration ──
-const USE_MOCK_API = true; // Set to false when backend is ready
-const API_BASE = 'http://45.118.160.135:9898/api';
+const USE_MOCK_API = false; // Using real backend for registration now
+const API_BASE = 'http://192.168.0.157:9898/api/v1';
 
 // ── Storage Keys ──
 const STORAGE_KEYS = {
   DEVICE_STATUS: '@device_auth_status',    // 'pending' | 'approved' | 'rejected' | null
   DEVICE_ID: '@device_auth_id',            // cached device ID
   REGISTRATION_DATE: '@device_auth_date',  // ISO timestamp of registration
+  STORED_EMAIL: '@device_auth_email',      // email entered during registration
 };
 
 // ── Types ──
@@ -34,6 +35,12 @@ export interface DeviceInfoData {
   deviceName: string;
   osVersion: string;
   platform: 'ios' | 'android';
+}
+
+export interface UserRegistrationData extends DeviceInfoData {
+  email?: string;
+  password?: string;
+  contactNo?: string;
 }
 
 export interface RegistrationResponse {
@@ -74,8 +81,17 @@ export async function getStoredDeviceStatus(): Promise<DeviceStatus> {
   }
 }
 
+// ── Get Stored Email (for pre-filling login) ──
+export async function getStoredEmail(): Promise<string> {
+  try {
+    return (await AsyncStorage.getItem(STORAGE_KEYS.STORED_EMAIL)) || '';
+  } catch {
+    return '';
+  }
+}
+
 // ── Register Device ──
-export async function registerDevice(info: DeviceInfoData): Promise<RegistrationResponse> {
+export async function registerDevice(info: UserRegistrationData): Promise<RegistrationResponse> {
   if (USE_MOCK_API) {
     // MOCK: Simulate API call, immediately set to pending
     await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, 'pending');
@@ -90,20 +106,36 @@ export async function registerDevice(info: DeviceInfoData): Promise<Registration
 
   // REAL API
   try {
-    const response = await fetch(`${API_BASE}/device/register`, {
+    const response = await fetch(`${API_BASE}/register/createUser`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(info),
     });
-    const data = await response.json();
+    
+    // Check if the response is ok (2xx status)
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Registration failed: ${errorText}`);
+    }
+
+    // Assuming the backend returns something we can parse, or we just default to pending
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        data = { status: 'pending', message: 'Success' };
+    }
 
     await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, data.status || 'pending');
     await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_ID, info.deviceId);
     await AsyncStorage.setItem(STORAGE_KEYS.REGISTRATION_DATE, new Date().toISOString());
+    if (info.email) {
+      await AsyncStorage.setItem(STORAGE_KEYS.STORED_EMAIL, info.email);
+    }
 
     return data;
-  } catch (error) {
-    throw new Error('Failed to register device. Please check your network connection.');
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to register device. Please check your network connection.');
   }
 }
 
@@ -115,18 +147,23 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
     return (status as DeviceStatus) || 'unregistered';
   }
 
-  // REAL API
+  // REAL API — GET /api/v1/admin/deviceStatus?deviceId=...
   try {
-    const response = await fetch(`${API_BASE}/device/status?deviceId=${deviceId}`);
+    const response = await fetch(`${API_BASE}/admin/deviceStatus?deviceId=${deviceId}`);
+    if (!response.ok) {
+      return getStoredDeviceStatus();
+    }
     const data = await response.json();
-    const newStatus = data.status as DeviceStatus;
+
+    // Backend may return { status: 'approved' } or { deviceStatus: 'approved' }
+    const newStatus = (data.status || data.deviceStatus || data.approvalStatus) as DeviceStatus;
 
     // Cache the latest status locally
     if (newStatus) {
       await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, newStatus);
     }
 
-    return newStatus || 'unregistered';
+    return newStatus || 'pending';
   } catch {
     // If network fails, fall back to cached status
     return getStoredDeviceStatus();

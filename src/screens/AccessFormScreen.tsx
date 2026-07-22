@@ -30,7 +30,8 @@ import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 // iOS Simulator can route to it directly. Android Emulator cannot, so we use the local proxy.
 // The backend server is hard-bound to 192.168.0.157 on port 9898.
 // We use the real LAN IP so physical devices on the network can connect.
-const API_URL = 'http://45.118.160.135:9898/api/offlinetba/generatePrivateKey';
+// const API_URL = 'http://45.118.160.135:9898/api/offlinetba/generatePrivateKey';
+const API_URL = 'http://192.168.0.157:9898/api/offlinetba/generatePrivateKey';
 
 // ── Custom Wheel Picker ──
 const WheelPicker = ({ items, selectedValue, onValueChange }: { items: string[], selectedValue: string, onValueChange: (val: string) => void }) => {

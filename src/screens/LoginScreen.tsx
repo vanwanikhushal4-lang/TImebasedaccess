@@ -18,8 +18,10 @@ import {
   StatusBar,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
+import {getStoredEmail} from '../services/deviceService';
 
 const {width} = Dimensions.get('window');
 
@@ -79,13 +81,19 @@ const UserIcon = () => (
 export default function LoginScreen({navigation}: any) {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Pre-fill email from registration
   useEffect(() => {
+    getStoredEmail().then(email => {
+      if (email) setUserId(email);
+    });
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1, duration: 800, useNativeDriver: true,
@@ -96,11 +104,35 @@ export default function LoginScreen({navigation}: any) {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleLogin = () => {
-    if (userId.toLowerCase() === 'poc' && password === '1234') {
-      navigation.replace('MainTabs');
-    } else {
-      Alert.alert('Access Denied', 'Invalid username or password.');
+  const handleLogin = async () => {
+    if (!userId || !password) {
+      Alert.alert('Missing Fields', 'Please enter your email and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch('http://192.168.0.157:9898/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: userId, password}),
+      });
+
+      if (response.ok) {
+        // Login successful — navigate into the app
+        navigation.replace('MainTabs');
+      } else {
+        const errText = await response.text();
+        let message = 'Invalid email or password.';
+        try {
+          const errJson = JSON.parse(errText);
+          message = errJson.message || errJson.error || message;
+        } catch { /* use default message */ }
+        Alert.alert('Access Denied', message);
+      }
+    } catch {
+      Alert.alert('Network Error', 'Could not reach the server. Please check your connection.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,7 +201,7 @@ export default function LoginScreen({navigation}: any) {
             {/* ── Form Fields ── */}
             <View style={styles.form}>
               {renderInput(
-                <UserIcon />, 'Username', userId, setUserId, 'userId',
+                <UserIcon />, 'Email Address', userId, setUserId, 'userId',
               )}
               {renderInput(
                 <LockIcon />, 'Password', password, setPassword, 'password', true,
@@ -182,13 +214,18 @@ export default function LoginScreen({navigation}: any) {
 
               {/* Primary CTA */}
               <TouchableOpacity 
-                style={styles.primaryBtn} 
+                style={[styles.primaryBtn, loading && {opacity: 0.7}]} 
                 activeOpacity={0.85}
-                onPress={handleLogin}>
+                onPress={handleLogin}
+                disabled={loading}>
                 <View style={styles.primaryBtnInner}>
-                  <Text style={styles.primaryBtnText}>
-                    Sign In Securely
-                  </Text>
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>
+                      Sign In Securely
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             </View>

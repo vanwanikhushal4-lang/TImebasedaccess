@@ -18,6 +18,10 @@ import {
   Image,
   Dimensions,
   Alert,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
@@ -86,6 +90,12 @@ const infoStyles = StyleSheet.create({
 export default function DeviceRegistrationScreen({navigation}: any) {
   const insets = useSafeAreaInsets();
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfoData | null>(null);
+  
+  // Registration Form State
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [contactNo, setContactNo] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [fetchingInfo, setFetchingInfo] = useState(true);
 
@@ -116,9 +126,20 @@ export default function DeviceRegistrationScreen({navigation}: any) {
 
   const handleRequestAccess = async () => {
     if (!deviceInfo) return;
+    
+    if (!email || !password || !contactNo) {
+      Alert.alert('Missing Fields', 'Please fill in your email, password, and contact number.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await registerDevice(deviceInfo);
+      await registerDevice({
+        ...deviceInfo,
+        email,
+        password,
+        contactNo,
+      });
       navigation.replace('DevicePending');
     } catch (e: any) {
       Alert.alert('Registration Failed', e.message || 'Please try again.');
@@ -135,16 +156,20 @@ export default function DeviceRegistrationScreen({navigation}: any) {
       <View style={styles.bgCircle1} />
       <View style={styles.bgCircle2} />
 
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top + Spacing.xxl,
-            paddingBottom: insets.bottom + Spacing.xl,
-            opacity: fadeAnim,
-            transform: [{translateY: slideAnim}],
-          },
-        ]}>
+      <KeyboardAvoidingView 
+        style={{flex: 1}} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={{flexGrow: 1}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Animated.View
+            style={[
+              styles.content,
+              {
+                paddingTop: insets.top + Spacing.xxl,
+                paddingBottom: insets.bottom + Spacing.xl,
+                opacity: fadeAnim,
+                transform: [{translateY: slideAnim}],
+              },
+            ]}>
 
         {/* Logo */}
         <Image
@@ -159,6 +184,40 @@ export default function DeviceRegistrationScreen({navigation}: any) {
         <Text style={styles.subtitle}>
           This device must be registered and approved by an administrator before you can access the system.
         </Text>
+
+        {/* Registration Form */}
+        <View style={styles.formContainer}>
+          <Text style={styles.inputLabel}>Email Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="user@example.com"
+            placeholderTextColor={Colors.textTertiary}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Create a secure password"
+            placeholderTextColor={Colors.textTertiary}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <Text style={styles.inputLabel}>Contact Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 9876543210"
+            placeholderTextColor={Colors.textTertiary}
+            value={contactNo}
+            onChangeText={setContactNo}
+            keyboardType="phone-pad"
+          />
+        </View>
 
         {/* Device Info Card */}
         <View style={styles.card}>
@@ -208,7 +267,9 @@ export default function DeviceRegistrationScreen({navigation}: any) {
         <Text style={styles.footerNote}>
           Your device fingerprint will be sent to the security administrator for verification.
         </Text>
-      </Animated.View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -254,6 +315,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
 
+  formContainer: {
+    width: '100%',
+    marginBottom: Spacing.xl,
+  },
+  inputLabel: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    marginBottom: Spacing.xs,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.md,
+    color: Colors.textPrimary,
+    fontSize: FontSizes.md,
+    paddingHorizontal: Spacing.md,
+    height: 52,
+    marginBottom: Spacing.lg,
+  },
+
   card: {
     width: '100%',
     backgroundColor: Colors.surface,
@@ -261,6 +345,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginBottom: Spacing.xl,
   },
   cardTitle: {
     fontSize: FontSizes.lg,
