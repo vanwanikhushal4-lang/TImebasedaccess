@@ -100,28 +100,39 @@ export async function registerDevice(info: UserRegistrationData): Promise<Regist
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('[registerDevice] Error response:', response.status, errorText);
+      console.log('[registerDevice] HTTP error:', response.status, errorText);
       throw new Error(`Registration failed (${response.status}): ${errorText}`);
     }
 
-    console.log('[registerDevice] Success, status:', response.status);
+    console.log('[registerDevice] HTTP OK, status:', response.status);
 
-    let data;
+    let data: any;
     try {
       data = await response.json();
+      console.log('[registerDevice] Response body:', JSON.stringify(data));
     } catch {
-      data = {status: 'pending', message: 'Success'};
+      data = null;
     }
 
-    // Persist locally
-    await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, data.status || 'pending');
+    // Backend uses status:0 for success, status:-1 for error (even on HTTP 200)
+    if (data && data.status !== undefined && data.status !== 0) {
+      const errMsg = typeof data.response === 'string'
+        ? data.response
+        : data?.response?.message || 'Registration failed on server.';
+      console.log('[registerDevice] Server-level error:', errMsg);
+      throw new Error(errMsg);
+    }
+
+    // Only persist locally if registration actually succeeded
+    await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, 'pending');
     await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_ID, info.deviceId);
     await AsyncStorage.setItem(STORAGE_KEYS.REGISTRATION_DATE, new Date().toISOString());
     if (info.email) {
       await AsyncStorage.setItem(STORAGE_KEYS.STORED_EMAIL, info.email);
     }
 
-    return data;
+    console.log('[registerDevice] Saved locally. DeviceId:', info.deviceId);
+    return {status: 'pending', message: 'Registered successfully'};
   } catch (error: any) {
     console.log('[registerDevice] Exception:', error.message);
     throw new Error(
