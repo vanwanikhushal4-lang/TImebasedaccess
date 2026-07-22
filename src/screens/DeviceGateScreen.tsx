@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import {Colors, Spacing, FontSizes} from '../theme/colors';
 import {getStoredDeviceStatus, getDeviceInfo, checkDeviceStatus} from '../services/deviceService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
 
@@ -73,10 +74,17 @@ export default function DeviceGateScreen({navigation}: any) {
         const serverStatus = await checkDeviceStatus(info.deviceId);
         console.log('[DeviceGateScreen] Server returned status:', serverStatus);
 
+        const authToken = await AsyncStorage.getItem('@auth_token');
+
         switch (serverStatus) {
           case 'approved':
-            console.log('[DeviceGateScreen] Device APPROVED -> Routing to LoginScreen');
-            navigation.replace('Login');
+            if (authToken) {
+              console.log('[DeviceGateScreen] Device APPROVED & Active Session Token Found -> Routing to MainTabs');
+              navigation.replace('MainTabs');
+            } else {
+              console.log('[DeviceGateScreen] Device APPROVED but no Session Token -> Routing to LoginScreen');
+              navigation.replace('Login');
+            }
             break;
           case 'pending':
             console.log('[DeviceGateScreen] Device PENDING -> Routing to DevicePendingScreen');
@@ -94,10 +102,15 @@ export default function DeviceGateScreen({navigation}: any) {
         console.log('[DeviceGateScreen] Error during gate check:', err?.message || err);
         // If anything fails, fall back to local status
         const fallback = await getStoredDeviceStatus();
+        const authToken = await AsyncStorage.getItem('@auth_token');
         console.log('[DeviceGateScreen] Fallback to local stored status:', fallback);
         switch (fallback) {
           case 'approved':
-            navigation.replace('Login');
+            if (authToken) {
+              navigation.replace('MainTabs');
+            } else {
+              navigation.replace('Login');
+            }
             break;
           case 'pending':
             navigation.replace('DevicePending');
