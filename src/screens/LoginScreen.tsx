@@ -111,22 +111,31 @@ export default function LoginScreen({navigation}: any) {
     }
     setLoading(true);
     try {
-      const response = await fetch('http://192.168.0.157:9898/auth/login', {
+      const response = await fetch('http://192.168.0.157:9898/api/v1/auth/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: userId, password}),
       });
 
-      if (response.ok) {
-        // Login successful — navigate into the app
+      const data = await response.json();
+
+      // Backend returns: { "response": { "message": "Login successful", "token": "..." }, "status": 0 }
+      // status: 0 means SUCCESS on this backend
+      const isSuccess =
+        response.ok ||
+        data?.status === 0 ||
+        data?.response?.message?.toLowerCase().includes('success');
+
+      if (isSuccess) {
+        // Optionally store the token for future authenticated requests
+        // await AsyncStorage.setItem('@auth_token', data?.response?.token || '');
         navigation.replace('MainTabs');
       } else {
-        const errText = await response.text();
-        let message = 'Invalid email or password.';
-        try {
-          const errJson = JSON.parse(errText);
-          message = errJson.message || errJson.error || message;
-        } catch { /* use default message */ }
+        const message =
+          data?.response?.message ||
+          data?.message ||
+          data?.error ||
+          'Invalid email or password.';
         Alert.alert('Access Denied', message);
       }
     } catch {
