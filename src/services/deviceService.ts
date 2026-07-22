@@ -155,15 +155,25 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
     }
     const data = await response.json();
 
-    // Backend may return { status: 'approved' } or { deviceStatus: 'approved' }
-    const newStatus = (data.status || data.deviceStatus || data.approvalStatus) as DeviceStatus;
+    // Backend returns: { "response": { "deviceStatus": "APPROVED" }, "status": 0 }
+    const raw =
+      data?.response?.deviceStatus ||
+      data?.response?.status ||
+      data?.deviceStatus ||
+      data?.status;
+
+    // Normalize to lowercase ('APPROVED' -> 'approved')
+    const newStatus = typeof raw === 'string'
+      ? (raw.toLowerCase() as DeviceStatus)
+      : null;
 
     // Cache the latest status locally
-    if (newStatus) {
+    if (newStatus && ['pending', 'approved', 'rejected'].includes(newStatus)) {
       await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, newStatus);
+      return newStatus;
     }
 
-    return newStatus || 'pending';
+    return 'pending';
   } catch {
     // If network fails, fall back to cached status
     return getStoredDeviceStatus();
