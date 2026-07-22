@@ -89,6 +89,9 @@ export async function getStoredEmail(): Promise<string> {
 // ── Register Device — POST /api/v1/register/createUser ──
 export async function registerDevice(info: UserRegistrationData): Promise<RegistrationResponse> {
   try {
+    console.log('[registerDevice] Calling:', `http://192.168.0.157:9898/api/v1/register/createUser`);
+    console.log('[registerDevice] Payload:', JSON.stringify({...info, password: '***'}));
+
     const response = await fetch(`${API_BASE}/register/createUser`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -97,8 +100,11 @@ export async function registerDevice(info: UserRegistrationData): Promise<Regist
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Registration failed: ${errorText}`);
+      console.log('[registerDevice] Error response:', response.status, errorText);
+      throw new Error(`Registration failed (${response.status}): ${errorText}`);
     }
+
+    console.log('[registerDevice] Success, status:', response.status);
 
     let data;
     try {
@@ -117,6 +123,7 @@ export async function registerDevice(info: UserRegistrationData): Promise<Regist
 
     return data;
   } catch (error: any) {
+    console.log('[registerDevice] Exception:', error.message);
     throw new Error(
       error.message || 'Failed to register device. Please check your network connection.',
     );
@@ -126,10 +133,25 @@ export async function registerDevice(info: UserRegistrationData): Promise<Regist
 // ── Check Device Status — GET /api/v1/admin/deviceStatus?deviceId=... ──
 export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus> {
   try {
+    console.log('[checkDeviceStatus] Calling deviceId:', deviceId);
     const response = await fetch(`${API_BASE}/admin/deviceStatus?deviceId=${deviceId}`);
+
+    // 404 means device never registered on backend — treat as unregistered
+    if (response.status === 404) {
+      console.log('[checkDeviceStatus] 404 — device not found on backend, clearing local cache');
+      await AsyncStorage.multiRemove([
+        '@device_auth_status',
+        '@device_auth_id',
+        '@device_auth_date',
+      ]);
+      return 'unregistered';
+    }
+
     if (!response.ok) {
+      // Other server errors — fall back to cached status
       return getStoredDeviceStatus();
     }
+
     const data = await response.json();
 
     // Backend returns: { "response": { "deviceStatus": "APPROVED" }, "status": 0 }
@@ -144,12 +166,15 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
       typeof raw === 'string' ? (raw.toLowerCase() as DeviceStatus) : null;
 
     if (newStatus && ['pending', 'approved', 'rejected'].includes(newStatus)) {
+      console.log('[checkDeviceStatus] Status from backend:', newStatus);
       await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, newStatus);
       return newStatus;
     }
 
+    console.log('[checkDeviceStatus] Could not parse status from:', JSON.stringify(data));
     return 'pending';
-  } catch {
+  } catch (e: any) {
+    console.log('[checkDeviceStatus] Exception:', e.message);
     // Network failure — fall back to cached status
     return getStoredDeviceStatus();
   }

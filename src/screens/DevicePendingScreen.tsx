@@ -86,6 +86,9 @@ export default function DevicePendingScreen({navigation}: any) {
         navigation.replace('Login');
       } else if (status === 'rejected') {
         navigation.replace('DeviceRejected');
+      } else if (status === 'unregistered') {
+        // Backend has no record — stale local data, go re-register
+        navigation.replace('DeviceRegistration');
       }
       // else still pending — stay on this screen
     } catch {
