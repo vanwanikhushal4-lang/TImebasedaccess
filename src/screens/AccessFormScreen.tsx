@@ -170,26 +170,24 @@ export default function AccessFormScreen({navigation}: any) {
         console.log('[AccessFormScreen] Response Headers:', JSON.stringify(error.response.headers));
         
         const serverData = error.response.data;
-        const serverMsg = typeof serverData === 'string'
-          ? serverData
-          : serverData?.response?.message || serverData?.message || serverData?.response || JSON.stringify(serverData);
-          
-        errorDetail = `HTTP ${error.response.status}: ${serverMsg}`;
+        let serverMsg = '';
+        if (typeof serverData === 'string') {
+          serverMsg = serverData;
+        } else if (serverData) {
+          serverMsg = serverData.response?.message || serverData.message || serverData.response || serverData.error || JSON.stringify(serverData);
+        }
+        
+        errorDetail = `HTTP ${error.response.status}: ${serverMsg || 'Forbidden / Unauthorized'}`;
       } else if (error.request) {
         console.log('[AccessFormScreen] Request was sent but no response received');
       }
 
-      if (error.response?.status === 403) {
-        Alert.alert(
-          'Authorization Error (403 Forbidden)',
-          `The server rejected your authorization token.\n\nError: ${errorDetail}\n\nPlease try logging out and logging in again.`,
-        );
-      } else {
-        Alert.alert(
-          'Request Failed',
-          `${errorDetail}\n\nURL: ${API_URL}`,
-        );
-      }
+      const tokenSnippet = token ? `${token.substring(0, 12)}...${token.slice(-8)} (Length: ${token.length})` : 'MISSING';
+
+      Alert.alert(
+        `Server Error (${error.response?.status || 'Network'})`,
+        `Details: ${errorDetail}\n\nToken Sent: ${tokenSnippet}\n\nURL: ${API_URL}`,
+      );
     } finally {
       setLoading(false);
     }
