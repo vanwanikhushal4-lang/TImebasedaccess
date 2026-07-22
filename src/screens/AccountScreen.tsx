@@ -1,4 +1,8 @@
-import React from 'react';
+/**
+ * AccountScreen — TimeBasedAccess
+ * User profile, settings, and logout.
+ */
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,6 +14,15 @@ import {
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
+import {
+  getDeviceInfo,
+  getStoredDeviceStatus,
+  mockApproveDevice,
+  mockRejectDevice,
+  mockResetDevice,
+  DeviceInfoData,
+  DeviceStatus,
+} from '../services/deviceService';
 
 // Menu row icons (pure RN)
 const ChevronRight = () => (
@@ -24,6 +37,17 @@ const ChevronRight = () => (
 export default function AccountScreen({route}: any) {
   const insets = useSafeAreaInsets();
   const onLogout = route.params?.onLogout || (() => {});
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfoData | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>('unregistered');
+
+  useEffect(() => {
+    (async () => {
+      const info = await getDeviceInfo();
+      setDeviceInfo(info);
+      const status = await getStoredDeviceStatus();
+      setDeviceStatus(status);
+    })();
+  }, []);
 
   const menuItems = [
     {label: 'Personal Information', subtitle: 'Name, email, phone'},
@@ -94,6 +118,54 @@ export default function AccountScreen({route}: any) {
               <ChevronRight />
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* ── Device Admin Controls (Mock) ── */}
+        <Text style={styles.sectionTitle}>Device Auth (Admin Mock)</Text>
+        <View style={styles.menuCard}>
+          <View style={[infoStyles.row, {borderBottomWidth: 0}]}>
+            <Text style={infoStyles.label}>Device ID</Text>
+            <Text style={infoStyles.value} numberOfLines={1}>{deviceInfo?.deviceId || '…'}</Text>
+          </View>
+          <View style={[infoStyles.row, {borderBottomWidth: 0}]}>
+            <Text style={infoStyles.label}>Status</Text>
+            <Text style={[infoStyles.value, {
+              color: deviceStatus === 'approved' ? Colors.secure 
+                   : deviceStatus === 'rejected' ? Colors.danger 
+                   : Colors.accent
+            }]}>
+              {deviceStatus.toUpperCase()}
+            </Text>
+          </View>
+          <View style={{flexDirection: 'row', gap: 8, marginTop: Spacing.md}}>
+            <TouchableOpacity 
+              style={[styles.mockBtn, {backgroundColor: 'rgba(0, 230, 118, 0.15)', borderColor: Colors.secure}]}
+              onPress={async () => {
+                await mockApproveDevice();
+                setDeviceStatus('approved');
+                Alert.alert('Done', 'Device status set to APPROVED');
+              }}>
+              <Text style={[styles.mockBtnText, {color: Colors.secure}]}>Approve</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.mockBtn, {backgroundColor: 'rgba(255, 61, 113, 0.15)', borderColor: Colors.danger}]}
+              onPress={async () => {
+                await mockRejectDevice();
+                setDeviceStatus('rejected');
+                Alert.alert('Done', 'Device status set to REJECTED');
+              }}>
+              <Text style={[styles.mockBtnText, {color: Colors.danger}]}>Reject</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.mockBtn, {backgroundColor: 'rgba(255, 184, 0, 0.15)', borderColor: Colors.accent}]}
+              onPress={async () => {
+                await mockResetDevice();
+                setDeviceStatus('unregistered');
+                Alert.alert('Done', 'Device registration cleared. Restart app to test.');
+              }}>
+              <Text style={[styles.mockBtnText, {color: Colors.accent}]}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Logout ── */}
@@ -272,5 +344,43 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     color: Colors.textTertiary,
     marginBottom: 4,
+  },
+
+  // Mock Admin Buttons
+  mockBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  mockBtnText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
+});
+
+// Inline styles for device info rows
+const infoStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  label: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  value: {
+    fontSize: FontSizes.sm,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    flex: 1.5,
+    textAlign: 'right',
   },
 });
