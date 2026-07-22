@@ -115,16 +115,15 @@ export default function AccessFormScreen({navigation}: any) {
       publicKey: publicKey.trim(),
     };
 
+    let token: string | null = null;
+
     try {
-      const token = await AsyncStorage.getItem('@auth_token');
+      token = await AsyncStorage.getItem('@auth_token');
       console.log('=== [AccessFormScreen] AXIOS REQUEST (generatePrivateKey) ===');
       console.log('[AccessFormScreen] URL:', API_URL);
       console.log('[AccessFormScreen] Raw Stored Auth Token:', token);
       console.log('[AccessFormScreen] Payload:', JSON.stringify(payload));
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
       if (!token) {
         console.log('[AccessFormScreen] WARNING: No @auth_token found in AsyncStorage!');
         Alert.alert(
@@ -143,6 +142,11 @@ export default function AccessFormScreen({navigation}: any) {
         );
         return;
       }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
 
       console.log('[AccessFormScreen] Request Headers:', JSON.stringify(headers));
 
