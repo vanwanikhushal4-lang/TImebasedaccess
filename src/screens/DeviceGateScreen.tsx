@@ -56,33 +56,45 @@ export default function DeviceGateScreen({navigation}: any) {
     // Check device status after a brief delay for the splash to show
     const timer = setTimeout(async () => {
       try {
+        console.log('=== [DeviceGateScreen] Starting App Initial Status Check ===');
         const localStatus = await getStoredDeviceStatus();
+        console.log('[DeviceGateScreen] Local stored status:', localStatus);
 
         if (localStatus === 'unregistered') {
+          console.log('[DeviceGateScreen] Local status is unregistered. Routing to DeviceRegistrationScreen.');
           navigation.replace('DeviceRegistration');
           return;
         }
 
         // If we have a cached status, try to refresh from the server
         const info = await getDeviceInfo();
+        console.log('[DeviceGateScreen] Hardware info fetched:', info.deviceId, info.brand, info.model);
+        console.log('[DeviceGateScreen] Verifying device status with backend server...');
         const serverStatus = await checkDeviceStatus(info.deviceId);
+        console.log('[DeviceGateScreen] Server returned status:', serverStatus);
 
         switch (serverStatus) {
           case 'approved':
+            console.log('[DeviceGateScreen] Device APPROVED -> Routing to LoginScreen');
             navigation.replace('Login');
             break;
           case 'pending':
+            console.log('[DeviceGateScreen] Device PENDING -> Routing to DevicePendingScreen');
             navigation.replace('DevicePending');
             break;
           case 'rejected':
+            console.log('[DeviceGateScreen] Device REJECTED -> Routing to DeviceRejectedScreen');
             navigation.replace('DeviceRejected');
             break;
           default:
+            console.log('[DeviceGateScreen] Device UNREGISTERED -> Routing to DeviceRegistrationScreen');
             navigation.replace('DeviceRegistration');
         }
-      } catch {
+      } catch (err: any) {
+        console.log('[DeviceGateScreen] Error during gate check:', err?.message || err);
         // If anything fails, fall back to local status
         const fallback = await getStoredDeviceStatus();
+        console.log('[DeviceGateScreen] Fallback to local stored status:', fallback);
         switch (fallback) {
           case 'approved':
             navigation.replace('Login');

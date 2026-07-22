@@ -104,10 +104,13 @@ export default function DeviceRegistrationScreen({navigation}: any) {
 
   useEffect(() => {
     (async () => {
+      console.log('=== [DeviceRegistrationScreen] Screen Mounted ===');
       try {
         const info = await getDeviceInfo();
+        console.log('[DeviceRegistrationScreen] Device Info loaded successfully:', info);
         setDeviceInfo(info);
-      } catch {
+      } catch (err: any) {
+        console.log('[DeviceRegistrationScreen] Error fetching device info:', err?.message || err);
         Alert.alert('Error', 'Could not read device information.');
       } finally {
         setFetchingInfo(false);
@@ -125,23 +128,34 @@ export default function DeviceRegistrationScreen({navigation}: any) {
   }, [fadeAnim, slideAnim]);
 
   const handleRequestAccess = async () => {
-    if (!deviceInfo) return;
+    console.log('=== [DeviceRegistrationScreen] User Tapped "Request Access" ===');
+    console.log('[DeviceRegistrationScreen] Form Values:', {email, contactNo, passwordLength: password.length, deviceId: deviceInfo?.deviceId});
+
+    if (!deviceInfo) {
+      console.log('[DeviceRegistrationScreen] Error: Device Info is missing.');
+      return;
+    }
     
     if (!email || !password || !contactNo) {
+      console.log('[DeviceRegistrationScreen] Validation Error: Missing required fields');
       Alert.alert('Missing Fields', 'Please fill in your email, password, and contact number.');
       return;
     }
 
     setLoading(true);
     try {
-      await registerDevice({
+      console.log('[DeviceRegistrationScreen] Sending registration request to backend...');
+      const res = await registerDevice({
         ...deviceInfo,
         email,
         password,
         contactNo,
       });
+      console.log('[DeviceRegistrationScreen] Registration success response:', res);
+      console.log('[DeviceRegistrationScreen] Navigating to DevicePendingScreen');
       navigation.replace('DevicePending');
     } catch (e: any) {
+      console.log('[DeviceRegistrationScreen] Registration failed with error:', e?.message || e);
       Alert.alert('Registration Failed', e.message || 'Please try again.');
     } finally {
       setLoading(false);

@@ -90,8 +90,12 @@ export default function LoginScreen({navigation}: any) {
 
   // Pre-fill email from registration
   useEffect(() => {
+    console.log('=== [LoginScreen] Screen Mounted ===');
     getStoredEmail().then(email => {
-      if (email) setUserId(email);
+      if (email) {
+        console.log('[LoginScreen] Pre-filled email from stored registration:', email);
+        setUserId(email);
+      }
     });
 
     Animated.parallel([
@@ -105,19 +109,26 @@ export default function LoginScreen({navigation}: any) {
   }, [fadeAnim, slideAnim]);
 
   const handleLogin = async () => {
+    console.log('=== [LoginScreen] User Tapped "Sign In Securely" ===');
+    console.log('[LoginScreen] Login credentials:', {email: userId, passwordLength: password.length});
+
     if (!userId || !password) {
+      console.log('[LoginScreen] Validation Error: Missing email or password');
       Alert.alert('Missing Fields', 'Please enter your email and password.');
       return;
     }
     setLoading(true);
     try {
+      console.log('[LoginScreen] Calling POST http://192.168.0.157:9898/api/v1/auth/login');
       const response = await fetch('http://192.168.0.157:9898/api/v1/auth/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: userId, password}),
       });
 
+      console.log('[LoginScreen] HTTP Response Status Code:', response.status);
       const data = await response.json();
+      console.log('[LoginScreen] Response Body:', JSON.stringify(data));
 
       // Backend returns: { "response": { "message": "Login successful", "token": "..." }, "status": 0 }
       // status: 0 means SUCCESS on this backend
@@ -126,9 +137,10 @@ export default function LoginScreen({navigation}: any) {
         data?.status === 0 ||
         data?.response?.message?.toLowerCase().includes('success');
 
+      console.log('[LoginScreen] Login evaluation isSuccess:', isSuccess);
+
       if (isSuccess) {
-        // Optionally store the token for future authenticated requests
-        // await AsyncStorage.setItem('@auth_token', data?.response?.token || '');
+        console.log('[LoginScreen] Login SUCCESSFUL -> Navigating to MainTabs');
         navigation.replace('MainTabs');
       } else {
         const message =
@@ -136,9 +148,11 @@ export default function LoginScreen({navigation}: any) {
           data?.message ||
           data?.error ||
           'Invalid email or password.';
+        console.log('[LoginScreen] Login REJECTED by server with message:', message);
         Alert.alert('Access Denied', message);
       }
-    } catch {
+    } catch (err: any) {
+      console.log('[LoginScreen] Login Network/Runtime Exception:', err?.message || err);
       Alert.alert('Network Error', 'Could not reach the server. Please check your connection.');
     } finally {
       setLoading(false);

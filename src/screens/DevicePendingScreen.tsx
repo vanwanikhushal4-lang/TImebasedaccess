@@ -73,6 +73,8 @@ export default function DevicePendingScreen({navigation}: any) {
 
   const handleCheckStatus = useCallback(async () => {
     if (!deviceId || checking) return;
+    console.log('=== [DevicePendingScreen] Checking Device Approval Status ===');
+    console.log('[DevicePendingScreen] Querying for Device ID:', deviceId);
     setChecking(true);
 
     // Spin animation
@@ -82,17 +84,22 @@ export default function DevicePendingScreen({navigation}: any) {
 
     try {
       const status = await checkDeviceStatus(deviceId);
+      console.log('[DevicePendingScreen] Received device status:', status);
+
       if (status === 'approved') {
+        console.log('[DevicePendingScreen] Device APPROVED -> Routing to LoginScreen');
         navigation.replace('Login');
       } else if (status === 'rejected') {
+        console.log('[DevicePendingScreen] Device REJECTED -> Routing to DeviceRejectedScreen');
         navigation.replace('DeviceRejected');
       } else if (status === 'unregistered') {
-        // Backend has no record — stale local data, go re-register
+        console.log('[DevicePendingScreen] Device UNREGISTERED / 404 -> Routing to DeviceRegistrationScreen');
         navigation.replace('DeviceRegistration');
+      } else {
+        console.log('[DevicePendingScreen] Device still PENDING -> Remaining on Pending Screen');
       }
-      // else still pending — stay on this screen
-    } catch {
-      // Network error — stay on this screen
+    } catch (err: any) {
+      console.log('[DevicePendingScreen] Exception while checking status:', err?.message || err);
     } finally {
       setChecking(false);
     }
