@@ -21,7 +21,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
-import {getStoredEmail} from '../services/deviceService';
 
 const {width} = Dimensions.get('window');
 
@@ -88,12 +87,7 @@ export default function LoginScreen({navigation}: any) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Pre-fill email from registration
   useEffect(() => {
-    getStoredEmail().then(email => {
-      if (email) setUserId(email);
-    });
-
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1, duration: 800, useNativeDriver: true,
@@ -245,10 +239,6 @@ export default function LoginScreen({navigation}: any) {
             <View style={styles.secureBadge}>
               <View style={styles.secureDot} />
               <Text style={styles.secureText}>256-bit AES Encrypted</Text>
-            </View>
-            <View style={[styles.secureBadge, {backgroundColor: 'rgba(0, 180, 255, 0.08)', marginBottom: Spacing.sm}]}>
-              <View style={[styles.secureDot, {backgroundColor: Colors.primary}]} />
-              <Text style={[styles.secureText, {color: Colors.primary}]}>Device Verified ✓</Text>
             </View>
             <Text style={styles.versionText}>v1.0.0</Text>
           </View>
