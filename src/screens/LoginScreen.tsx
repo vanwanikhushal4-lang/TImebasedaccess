@@ -128,8 +128,13 @@ export default function LoginScreen({navigation}: any) {
       });
 
       console.log('[LoginScreen] HTTP Response Status Code:', response.status);
-      const data = await response.json();
-      console.log('[LoginScreen] Response Body:', JSON.stringify(data));
+      let data: any = null;
+      try {
+        data = await response.json();
+        console.log('[LoginScreen] Response Body:', JSON.stringify(data));
+      } catch (e: any) {
+        console.log('[LoginScreen] Could not parse JSON response:', e?.message);
+      }
 
       // Backend returns: { "response": { "message": "Login successful", "token": "..." }, "status": 0 }
       // status: 0 means SUCCESS on this backend
@@ -153,15 +158,16 @@ export default function LoginScreen({navigation}: any) {
       } else {
         const message =
           data?.response?.message ||
+          data?.response ||
           data?.message ||
           data?.error ||
-          'Invalid email or password.';
+          `Server error (Status ${response.status})`;
         console.log('[LoginScreen] Login REJECTED by server with message:', message);
-        Alert.alert('Access Denied', message);
+        Alert.alert('Access Denied', typeof message === 'string' ? message : JSON.stringify(message));
       }
     } catch (err: any) {
       console.log('[LoginScreen] Login Network/Runtime Exception:', err?.message || err);
-      Alert.alert('Network Error', 'Could not reach the server. Please check your connection.');
+      Alert.alert('Network Error', err?.message || 'Could not reach the server. Please check your connection.');
     } finally {
       setLoading(false);
     }
