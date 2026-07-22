@@ -21,6 +21,7 @@ import ViewShot from 'react-native-view-shot';
 import axios from 'axios';
 import RNShare from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 
 // ── Helpers ──
@@ -114,13 +115,22 @@ export default function AccessFormScreen({navigation}: any) {
       publicKey: publicKey.trim(),
     };
 
-    console.log('=== AXIOS REQUEST ===');
-    console.log('URL:', API_URL);
-    console.log('Payload:', JSON.stringify(payload));
-
     try {
+      const token = await AsyncStorage.getItem('@auth_token');
+      console.log('=== AXIOS REQUEST (generatePrivateKey) ===');
+      console.log('URL:', API_URL);
+      console.log('Auth Token Present:', token ? `YES (${token.substring(0, 15)}...)` : 'NO');
+      console.log('Payload:', JSON.stringify(payload));
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await axios.post(API_URL, payload, {
-        headers: {'Content-Type': 'application/json'},
+        headers,
         timeout: 15000,
       });
 
@@ -128,7 +138,7 @@ export default function AccessFormScreen({navigation}: any) {
       console.log('Status:', response.status);
       console.log('Data:', JSON.stringify(response.data));
 
-      const finalKey = response.data?.response || JSON.stringify(response.data);
+      const finalKey = response.data?.response || (typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
 
       setPrivateKey(finalKey);
       setCardGenerated(true);

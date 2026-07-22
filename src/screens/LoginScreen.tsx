@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 import {getStoredEmail} from '../services/deviceService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
 
@@ -140,6 +141,13 @@ export default function LoginScreen({navigation}: any) {
       console.log('[LoginScreen] Login evaluation isSuccess:', isSuccess);
 
       if (isSuccess) {
+        const token = data?.response?.token || data?.token || data?.response?.accessToken || data?.accessToken;
+        if (token) {
+          console.log('[LoginScreen] Storing Bearer Token in AsyncStorage:', token.substring(0, 20) + '...');
+          await AsyncStorage.setItem('@auth_token', token);
+        } else {
+          console.log('[LoginScreen] Warning: Login succeeded but no token was found in response payload.');
+        }
         console.log('[LoginScreen] Login SUCCESSFUL -> Navigating to MainTabs');
         navigation.replace('MainTabs');
       } else {
