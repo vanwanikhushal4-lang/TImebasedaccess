@@ -117,45 +117,66 @@ export default function AccessFormScreen({navigation}: any) {
 
     try {
       const token = await AsyncStorage.getItem('@auth_token');
-      console.log('=== AXIOS REQUEST (generatePrivateKey) ===');
-      console.log('URL:', API_URL);
-      console.log('Auth Token Present:', token ? `YES (${token.substring(0, 15)}...)` : 'NO');
-      console.log('Payload:', JSON.stringify(payload));
+      console.log('=== [AccessFormScreen] AXIOS REQUEST (generatePrivateKey) ===');
+      console.log('[AccessFormScreen] URL:', API_URL);
+      console.log('[AccessFormScreen] Raw Stored Auth Token:', token);
+      console.log('[AccessFormScreen] Payload:', JSON.stringify(payload));
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+      } else {
+        console.log('[AccessFormScreen] WARNING: No @auth_token found in AsyncStorage!');
       }
+
+      console.log('[AccessFormScreen] Request Headers:', JSON.stringify(headers));
 
       const response = await axios.post(API_URL, payload, {
         headers,
         timeout: 15000,
       });
 
-      console.log('=== AXIOS RESPONSE ===');
-      console.log('Status:', response.status);
-      console.log('Data:', JSON.stringify(response.data));
+      console.log('=== [AccessFormScreen] AXIOS RESPONSE ===');
+      console.log('[AccessFormScreen] Status:', response.status);
+      console.log('[AccessFormScreen] Data:', JSON.stringify(response.data));
 
       const finalKey = response.data?.response || (typeof response.data === 'string' ? response.data : JSON.stringify(response.data));
 
       setPrivateKey(finalKey);
       setCardGenerated(true);
     } catch (error: any) {
-      console.log('=== AXIOS ERROR ===');
-      console.log('Message:', error.message);
+      console.log('=== [AccessFormScreen] AXIOS ERROR ===');
+      console.log('[AccessFormScreen] Message:', error.message);
+      let errorDetail = error.message;
+
       if (error.response) {
-        console.log('Response status:', error.response.status);
-        console.log('Response data:', JSON.stringify(error.response.data));
+        console.log('[AccessFormScreen] Response Status:', error.response.status);
+        console.log('[AccessFormScreen] Response Data:', JSON.stringify(error.response.data));
+        console.log('[AccessFormScreen] Response Headers:', JSON.stringify(error.response.headers));
+        
+        const serverData = error.response.data;
+        const serverMsg = typeof serverData === 'string'
+          ? serverData
+          : serverData?.response?.message || serverData?.message || serverData?.response || JSON.stringify(serverData);
+          
+        errorDetail = `HTTP ${error.response.status}: ${serverMsg}`;
+      } else if (error.request) {
+        console.log('[AccessFormScreen] Request was sent but no response received');
       }
-      if (error.request) {
-        console.log('Request was made but no response received');
+
+      if (error.response?.status === 403) {
+        Alert.alert(
+          'Authorization Error (403 Forbidden)',
+          `The server rejected your authorization token.\n\nError: ${errorDetail}\n\nPlease try logging out and logging in again.`,
+        );
+      } else {
+        Alert.alert(
+          'Request Failed',
+          `${errorDetail}\n\nURL: ${API_URL}`,
+        );
       }
-      Alert.alert(
-        'Network Error',
-        `${error.message}\n\nURL: ${API_URL}`,
-      );
     } finally {
       setLoading(false);
     }
