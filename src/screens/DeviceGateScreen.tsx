@@ -58,18 +58,9 @@ export default function DeviceGateScreen({navigation}: any) {
     const timer = setTimeout(async () => {
       try {
         console.log('=== [DeviceGateScreen] Starting App Initial Status Check ===');
-        const localStatus = await getStoredDeviceStatus();
-        console.log('[DeviceGateScreen] Local stored status:', localStatus);
-
-        if (localStatus === 'unregistered') {
-          console.log('[DeviceGateScreen] Local status is unregistered. Routing to DeviceRegistrationScreen.');
-          navigation.replace('DeviceRegistration');
-          return;
-        }
-
-        // If we have a cached status, try to refresh from the server
         const info = await getDeviceInfo();
         console.log('[DeviceGateScreen] Hardware info fetched:', info.deviceId, info.brand, info.model);
+
         console.log('[DeviceGateScreen] Verifying device status with backend server...');
         const serverStatus = await checkDeviceStatus(info.deviceId);
         console.log('[DeviceGateScreen] Server returned status:', serverStatus);
