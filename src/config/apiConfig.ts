@@ -7,7 +7,7 @@ import DeviceInfo from 'react-native-device-info';
  * - Android Emulator -> uses 10.0.2.2 (special host loopback alias)
  * - Physical Android, Physical iPhone, & iOS Simulator -> uses Mac Wi-Fi LAN IP (192.168.0.7)
  */
-export const SERVER_HOST = '192.168.0.7';
+export const SERVER_HOST = '192.168.0.157';
 export const SERVER_PORT = '9898';
 
 const isEmulator = DeviceInfo.isEmulatorSync();
