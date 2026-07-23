@@ -125,21 +125,127 @@ const BackArrow = () => (
   </View>
 );
 
+// ── Vector Apple Icon ──
+const AppleIcon = ({size = 20, color = '#FFFFFF', bgColor = 'rgba(255, 255, 255, 0.08)'}: {size?: number; color?: string; bgColor?: string}) => {
+  return (
+    <View style={{width: size, height: size, alignItems: 'center', justifyContent: 'center'}}>
+      {/* Leaf */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: size * 0.22,
+          width: size * 0.26,
+          height: size * 0.26,
+          backgroundColor: color,
+          borderTopRightRadius: size * 0.26,
+          borderBottomLeftRadius: size * 0.26,
+          transform: [{rotate: '-30deg'}],
+        }}
+      />
+      {/* Main Apple Body */}
+      <View
+        style={{
+          width: size * 0.74,
+          height: size * 0.7,
+          backgroundColor: color,
+          borderTopLeftRadius: size * 0.37,
+          borderTopRightRadius: size * 0.37,
+          borderBottomLeftRadius: size * 0.3,
+          borderBottomRightRadius: size * 0.3,
+          marginTop: size * 0.22,
+        }}
+      />
+      {/* Bite Cutout */}
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.32,
+          right: -size * 0.06,
+          width: size * 0.34,
+          height: size * 0.34,
+          borderRadius: size * 0.17,
+          backgroundColor: bgColor,
+        }}
+      />
+    </View>
+  );
+};
+
+// ── Vector Android Icon ──
+const AndroidIcon = ({size = 22, color = '#00E676'}: {size?: number; color?: string}) => {
+  const headWidth = size * 0.8;
+  const headHeight = size * 0.45;
+  const eyeSize = size * 0.1;
+  const antennaLength = size * 0.22;
+
+  return (
+    <View style={{width: size, height: size, alignItems: 'center', justifyContent: 'center'}}>
+      {/* Left Antenna */}
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.08,
+          left: size * 0.22,
+          width: 2,
+          height: antennaLength,
+          backgroundColor: color,
+          borderRadius: 1,
+          transform: [{rotate: '-28deg'}],
+        }}
+      />
+      {/* Right Antenna */}
+      <View
+        style={{
+          position: 'absolute',
+          top: size * 0.08,
+          right: size * 0.22,
+          width: 2,
+          height: antennaLength,
+          backgroundColor: color,
+          borderRadius: 1,
+          transform: [{rotate: '28deg'}],
+        }}
+      />
+      {/* Android Head (Semi-circle) */}
+      <View
+        style={{
+          width: headWidth,
+          height: headHeight,
+          backgroundColor: color,
+          borderTopLeftRadius: headWidth / 2,
+          borderTopRightRadius: headWidth / 2,
+          marginTop: size * 0.2,
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          paddingHorizontal: headWidth * 0.18,
+        }}>
+        {/* Left Eye */}
+        <View style={{width: eyeSize, height: eyeSize, borderRadius: eyeSize / 2, backgroundColor: Colors.surface}} />
+        {/* Right Eye */}
+        <View style={{width: eyeSize, height: eyeSize, borderRadius: eyeSize / 2, backgroundColor: Colors.surface}} />
+      </View>
+    </View>
+  );
+};
+
 // ── Platform Icon ──
 const PlatformIcon = ({platform}: {platform: string}) => {
   const isIOS = platform.toLowerCase() === 'ios';
+  const bgColor = isIOS ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 230, 118, 0.1)';
+
   return (
     <View style={{
-      width: 36, height: 36, borderRadius: 18,
-      backgroundColor: isIOS ? 'rgba(148, 163, 184, 0.1)' : 'rgba(0, 230, 118, 0.1)',
+      width: 38, height: 38, borderRadius: 19,
+      backgroundColor: bgColor,
       alignItems: 'center', justifyContent: 'center',
     }}>
-      <Text style={{
-        fontSize: 14, fontWeight: '700',
-        color: isIOS ? Colors.textSecondary : Colors.secure,
-      }}>
-        {isIOS ? '🍎' : '🤖'}
-      </Text>
+      {isIOS ? (
+        <AppleIcon size={20} color="#FFFFFF" bgColor={bgColor} />
+      ) : (
+        <AndroidIcon size={22} color="#00E676" />
+      )}
     </View>
   );
 };
