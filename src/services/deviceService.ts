@@ -11,7 +11,7 @@ import DeviceInfo from 'react-native-device-info';
 import {Platform} from 'react-native';
 
 // ── Configuration ──
-const API_BASE = 'http://192.168.0.157:9898/api/v1';
+export const API_BASE = 'http://192.168.0.157:9898/api/v1';
 
 // ── Storage Keys ──
 const STORAGE_KEYS = {
@@ -19,6 +19,7 @@ const STORAGE_KEYS = {
   DEVICE_ID: '@device_auth_id',           // cached device ID
   REGISTRATION_DATE: '@device_auth_date', // ISO timestamp of registration
   STORED_EMAIL: '@device_auth_email',     // email entered during registration
+  USER_ROLE: '@user_role',                // 'ADMIN' | 'USER'
 };
 
 // ── Types ──
@@ -37,6 +38,7 @@ export interface UserRegistrationData extends DeviceInfoData {
   email?: string;
   password?: string;
   contactNo?: string;
+  role?: string;
 }
 
 export interface RegistrationResponse {
@@ -86,16 +88,34 @@ export async function getStoredEmail(): Promise<string> {
   }
 }
 
+// ── Get / Set User Role ──
+export async function getStoredRole(): Promise<string> {
+  try {
+    return (await AsyncStorage.getItem(STORAGE_KEYS.USER_ROLE)) || 'USER';
+  } catch {
+    return 'USER';
+  }
+}
+
+export async function setStoredRole(role: string): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEYS.USER_ROLE, role.toUpperCase());
+}
+
+export async function clearStoredRole(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEYS.USER_ROLE);
+}
+
 // ── Register Device — POST /api/v1/register/createUser ──
 export async function registerDevice(info: UserRegistrationData): Promise<RegistrationResponse> {
   try {
     console.log('[registerDevice] Calling:', `http://192.168.0.157:9898/api/v1/register/createUser`);
     console.log('[registerDevice] Payload:', JSON.stringify({...info, password: '***'}));
 
+    const payload = {...info, role: info.role || 'USER'};
     const response = await fetch(`${API_BASE}/register/createUser`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(info),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

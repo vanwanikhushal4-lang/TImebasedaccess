@@ -1,8 +1,9 @@
 /**
  * AccountScreen — TimeBasedAccess
  * User profile, settings, and logout.
+ * Shows "Device Management" option for ADMIN users.
  */
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -12,7 +13,9 @@ import {
   StatusBar,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
+import {getStoredRole, getStoredEmail} from '../services/deviceService';
 
 // Menu row icons (pure RN)
 const ChevronRight = () => (
@@ -24,9 +27,41 @@ const ChevronRight = () => (
   </View>
 );
 
+// Shield icon for Device Management
+const ShieldIcon = () => (
+  <View style={{width: 20, height: 22, alignItems: 'center', justifyContent: 'center'}}>
+    <View style={{
+      width: 18, height: 20, borderWidth: 2, borderColor: Colors.primary,
+      borderRadius: 4, borderBottomLeftRadius: 10, borderBottomRightRadius: 10,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <View style={{
+        width: 6, height: 6, borderRadius: 3,
+        backgroundColor: Colors.primary,
+      }} />
+    </View>
+  </View>
+);
+
 export default function AccountScreen({route}: any) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const onLogout = route.params?.onLogout || (() => {});
+
+  const [userRole, setUserRole] = useState('USER');
+  const [userEmail, setUserEmail] = useState('');
+
+  useEffect(() => {
+    getStoredRole().then(role => {
+      console.log('[AccountScreen] Stored user role:', role);
+      setUserRole(role);
+    });
+    getStoredEmail().then(email => {
+      setUserEmail(email);
+    });
+  }, []);
+
+  const isAdmin = userRole.toUpperCase() === 'ADMIN';
 
   const menuItems = [
     {label: 'Personal Information', subtitle: 'Name, email, phone'},
@@ -35,6 +70,10 @@ export default function AccountScreen({route}: any) {
     {label: 'Notification Preferences', subtitle: 'Alerts & push notifications'},
     {label: 'Help & Support', subtitle: 'FAQs, contact us'},
   ];
+
+  const avatarInitials = userEmail
+    ? userEmail.substring(0, 2).toUpperCase()
+    : 'U';
 
   return (
     <View style={styles.screen}>
@@ -52,12 +91,32 @@ export default function AccountScreen({route}: any) {
         {/* ── Profile Card ── */}
         <View style={styles.profileCard}>
           <View style={styles.avatarRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>POC</Text>
+            <View style={[styles.avatar, isAdmin && {borderColor: Colors.accent}]}>
+              <Text style={[styles.avatarText, isAdmin && {color: Colors.accent}]}>
+                {avatarInitials}
+              </Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>poc</Text>
-              <Text style={styles.profileRole}>Security Admin</Text>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {userEmail || 'User'}
+              </Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4}}>
+                <View style={[
+                  styles.roleBadge,
+                  {backgroundColor: isAdmin ? 'rgba(255, 184, 0, 0.12)' : 'rgba(0, 180, 255, 0.12)'},
+                ]}>
+                  <View style={[
+                    styles.roleDot,
+                    {backgroundColor: isAdmin ? Colors.accent : Colors.primary},
+                  ]} />
+                  <Text style={[
+                    styles.roleText,
+                    {color: isAdmin ? Colors.accent : Colors.primary},
+                  ]}>
+                    {isAdmin ? 'Administrator' : 'User'}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
           <View style={styles.profileDivider} />
@@ -78,6 +137,28 @@ export default function AccountScreen({route}: any) {
             </View>
           </View>
         </View>
+
+        {/* ── Admin: Device Management ── */}
+        {isAdmin && (
+          <>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            <TouchableOpacity
+              style={styles.adminCard}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('DeviceManagement')}>
+              <View style={styles.adminCardLeft}>
+                <ShieldIcon />
+                <View style={{marginLeft: Spacing.md, flex: 1}}>
+                  <Text style={styles.adminCardTitle}>Device Management</Text>
+                  <Text style={styles.adminCardSubtitle}>
+                    Approve, reject & manage user devices
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* ── Settings Menu ── */}
         <Text style={styles.sectionTitle}>Settings</Text>
@@ -170,14 +251,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.lg,
     color: Colors.textPrimary,
     fontWeight: '600',
-    marginBottom: 4,
   },
-  profileRole: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  roleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  roleText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   profileDivider: {
     height: 1,
@@ -216,6 +310,34 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '600',
     marginBottom: Spacing.md,
+  },
+
+  // Admin Card
+  adminCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 180, 255, 0.25)',
+    marginBottom: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adminCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  adminCardTitle: {
+    fontSize: FontSizes.md,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  adminCardSubtitle: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
   },
 
   // Menu

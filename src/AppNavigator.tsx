@@ -57,7 +57,7 @@ export default function AppNavigator({navigation}: any) {
 
   const onLogout = async () => {
     try {
-      await AsyncStorage.removeItem('@auth_token');
+      await AsyncStorage.multiRemove(['@auth_token', '@user_role']);
     } catch {}
     navigation.replace('Login');
   };

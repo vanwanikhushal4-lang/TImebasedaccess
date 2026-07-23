@@ -15,6 +15,7 @@ import DevicePendingScreen from './src/screens/DevicePendingScreen';
 import DeviceRejectedScreen from './src/screens/DeviceRejectedScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import AccessFormScreen from './src/screens/AccessFormScreen';
+import DeviceManagementScreen from './src/screens/DeviceManagementScreen';
 import AppNavigator from './src/AppNavigator';
 
 const Stack = createNativeStackNavigator();
@@ -35,6 +36,7 @@ function App() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="MainTabs" component={AppNavigator} />
           <Stack.Screen name="AccessForm" component={AccessFormScreen} />
+          <Stack.Screen name="DeviceManagement" component={DeviceManagementScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
