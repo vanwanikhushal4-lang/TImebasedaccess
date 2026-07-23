@@ -184,26 +184,45 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
     }
 
     const data = await response.json();
+    console.log('[checkDeviceStatus] Raw backend response:', JSON.stringify(data));
 
-    // Backend returns: { "response": { "deviceStatus": "APPROVED" }, "status": 0 }
-    const raw =
-      data?.response?.deviceStatus ||
-      data?.response?.status ||
-      data?.deviceStatus ||
-      data?.status;
+    // Extract status string from response payload
+    let rawStatus: string | null = null;
 
-    // Normalize to lowercase ('APPROVED' -> 'approved')
-    const newStatus =
-      typeof raw === 'string' ? (raw.toLowerCase() as DeviceStatus) : null;
+    if (typeof data?.response === 'string') {
+      rawStatus = data.response;
+    } else if (typeof data?.response === 'object' && data?.response !== null) {
+      rawStatus =
+        data.response.deviceStatus ||
+        data.response.status ||
+        data.response.device_status;
+    } else if (typeof data?.deviceStatus === 'string') {
+      rawStatus = data.deviceStatus;
+    } else if (typeof data?.status === 'string') {
+      rawStatus = data.status;
+    }
 
-    if (newStatus && ['pending', 'approved', 'rejected'].includes(newStatus)) {
-      console.log('[checkDeviceStatus] Status from backend:', newStatus);
-      await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, newStatus);
-      return newStatus;
+    if (rawStatus && typeof rawStatus === 'string') {
+      const lower = rawStatus.toLowerCase();
+      let parsedStatus: DeviceStatus | null = null;
+
+      if (lower.includes('approve')) {
+        parsedStatus = 'approved';
+      } else if (lower.includes('reject')) {
+        parsedStatus = 'rejected';
+      } else if (lower.includes('pending')) {
+        parsedStatus = 'pending';
+      }
+
+      if (parsedStatus) {
+        console.log('[checkDeviceStatus] Successfully parsed status:', parsedStatus);
+        await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_STATUS, parsedStatus);
+        return parsedStatus;
+      }
     }
 
     console.log('[checkDeviceStatus] Could not parse status from:', JSON.stringify(data));
-    return 'pending';
+    return getStoredDeviceStatus();
   } catch (e: any) {
     console.log('[checkDeviceStatus] Exception:', e.message);
     // Network failure — fall back to cached status
