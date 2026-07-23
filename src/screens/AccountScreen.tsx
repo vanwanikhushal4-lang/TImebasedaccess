@@ -15,7 +15,15 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
-import {getStoredRole, getStoredEmail, getDeviceInfo, checkDeviceStatus} from '../services/deviceService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getStoredRole,
+  getStoredEmail,
+  getDeviceInfo,
+  checkDeviceStatus,
+  setStoredRole,
+  fetchUserRoleFromApi,
+} from '../services/deviceService';
 
 // Menu row icons (pure RN)
 const ChevronRight = () => (
@@ -56,13 +64,25 @@ export default function AccountScreen({route}: any) {
       let isMounted = true;
       (async () => {
         const email = await getStoredEmail();
-        if (isMounted) setUserEmail(email);
+        const token = await AsyncStorage.getItem('@auth_token');
+        if (isMounted && email) setUserEmail(email);
 
-        // Check device status & sync latest role from server
+        // Check device status
         try {
           const info = await getDeviceInfo();
           await checkDeviceStatus(info.deviceId);
         } catch {}
+
+        // Fetch live role from backend getAllUsers if logged in
+        if (email && token) {
+          try {
+            const liveRole = await fetchUserRoleFromApi(email, token);
+            if (liveRole) {
+              console.log('[AccountScreen] Live role fetched from server:', liveRole);
+              await setStoredRole(liveRole);
+            }
+          } catch {}
+        }
 
         const role = await getStoredRole();
         console.log('[AccountScreen] Focused. Current user role:', role);

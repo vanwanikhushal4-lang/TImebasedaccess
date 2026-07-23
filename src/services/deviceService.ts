@@ -105,6 +105,93 @@ export async function clearStoredRole(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.USER_ROLE);
 }
 
+// ── Decode JWT Token for Role ──
+function decodeBase64(input: string): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+  let str = input.replace(/=+$/, '');
+  let output = '';
+
+  if (str.length % 4 === 1) {
+    return '';
+  }
+
+  for (
+    let block = 0, charCode: number, i = 0;
+    (charCode = str.charAt(i++));
+    ~charCode && (block = i % 4 ? block * 64 + charCode : charCode)
+      ? (output += String.fromCharCode(255 & (block >> ((-2 * i) & 6))))
+      : 0
+  ) {
+    charCode = chars.indexOf(charCode);
+  }
+
+  return output;
+}
+
+export function parseRoleFromJwt(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    let base64Url = parts[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const decoded = decodeBase64(base64);
+    if (!decoded) return null;
+    const parsed = JSON.parse(decoded);
+    console.log('[parseRoleFromJwt] Decoded JWT payload:', JSON.stringify(parsed));
+
+    const rawRole =
+      parsed.role ||
+      parsed.userRole ||
+      (Array.isArray(parsed.roles) ? parsed.roles[0] : null) ||
+      (Array.isArray(parsed.authorities)
+        ? typeof parsed.authorities[0] === 'string'
+          ? parsed.authorities[0]
+          : parsed.authorities[0]?.authority
+        : null);
+
+    if (typeof rawRole === 'string') {
+      const clean = rawRole.replace(/^ROLE_/, '').toUpperCase();
+      console.log('[parseRoleFromJwt] Extracted role:', clean);
+      return clean;
+    }
+  } catch (e: any) {
+    console.log('[parseRoleFromJwt] Exception:', e?.message);
+  }
+  return null;
+}
+
+// ── Fetch Live Role from getAllUsers API ──
+export async function fetchUserRoleFromApi(email: string, token: string): Promise<string | null> {
+  try {
+    console.log('[fetchUserRoleFromApi] Querying /admin/getAllUsers for email:', email);
+    const response = await fetch(`${API_BASE}/admin/getAllUsers`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+
+    if (data?.status === 0 && Array.isArray(data.response)) {
+      const found = data.response.find(
+        (u: any) => u.email && u.email.toLowerCase() === email.toLowerCase(),
+      );
+      if (found && found.role) {
+        console.log('[fetchUserRoleFromApi] Found role in getAllUsers:', found.role);
+        return found.role.toUpperCase();
+      }
+    }
+  } catch (e: any) {
+    console.log('[fetchUserRoleFromApi] Exception:', e?.message);
+  }
+  return null;
+}
+
 // ── Register Device — POST /api/v1/register/createUser ──
 export async function registerDevice(info: UserRegistrationData): Promise<RegistrationResponse> {
   try {

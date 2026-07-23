@@ -21,7 +21,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
-import {getStoredEmail, setStoredRole} from '../services/deviceService';
+import {getStoredEmail, setStoredRole, parseRoleFromJwt, fetchUserRoleFromApi} from '../services/deviceService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
@@ -165,10 +165,30 @@ export default function LoginScreen({navigation}: any) {
           console.log('[LoginScreen] Storing Bearer Token in AsyncStorage:', token.substring(0, 20) + '...');
           await AsyncStorage.setItem('@auth_token', token);
 
-          // Extract and store user role
-          const role = data?.response?.role || data?.role || 'USER';
-          console.log('[LoginScreen] User Role:', role);
-          await setStoredRole(role);
+          // Extract user role from multiple sources
+          let role: string | null = parseRoleFromJwt(token);
+
+          if (!role) {
+            if (typeof data?.response === 'object' && data?.response !== null) {
+              role = data.response.role || data.response.userRole;
+            } else if (typeof data?.response === 'string') {
+              try {
+                const parsed = JSON.parse(data.response);
+                role = parsed.role || parsed.userRole;
+              } catch {}
+            }
+            if (!role) role = data?.role || data?.userRole;
+          }
+
+          // If role is still missing or defaults to USER, try live API lookup
+          if (!role || role.toUpperCase() === 'USER') {
+            const liveRole = await fetchUserRoleFromApi(userId, token);
+            if (liveRole) role = liveRole;
+          }
+
+          const finalRole = role ? role.toUpperCase() : 'USER';
+          console.log('[LoginScreen] Final Stored User Role:', finalRole);
+          await setStoredRole(finalRole);
 
           console.log('[LoginScreen] Login SUCCESSFUL -> Navigating to MainTabs');
           navigation.replace('MainTabs');
