@@ -257,6 +257,7 @@ export default function DeviceManagementScreen({navigation}: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [approvingEmail, setApprovingEmail] = useState<string | null>(null);
+  const [rejectingDeviceId, setRejectingDeviceId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -337,6 +338,76 @@ export default function DeviceManagementScreen({navigation}: any) {
               Alert.alert('Error', 'Failed to approve user. Please check your connection.');
             } finally {
               setApprovingEmail(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleRejectDevice = async (deviceId: string, email: string) => {
+    Alert.alert(
+      'Remove Access',
+      `Are you sure you want to remove access for ${email}?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Remove Access',
+          style: 'destructive',
+          onPress: async () => {
+            setRejectingDeviceId(deviceId);
+            try {
+              const token = await AsyncStorage.getItem('@auth_token');
+              console.log('[DeviceManagement] Removing access for deviceId:', deviceId);
+
+              // Try POST first, fallback to GET if 405 Method Not Allowed
+              let response = await fetch(
+                `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                },
+              );
+
+              if (response.status === 405) {
+                console.log('[DeviceManagement] POST not allowed, trying GET for rejectDevice...');
+                response = await fetch(
+                  `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  },
+                );
+              }
+
+              let data: any = null;
+              try {
+                data = await response.json();
+                console.log('[DeviceManagement] Reject device response:', JSON.stringify(data));
+              } catch {
+                data = null;
+              }
+
+              if (response.ok || data?.status === 0) {
+                Alert.alert('Access Removed', `Access for ${email} has been revoked.`);
+                fetchUsers(); // Refresh list
+              } else {
+                Alert.alert(
+                  'Error',
+                  data?.response?.message || data?.response || 'Failed to remove access.',
+                );
+              }
+            } catch (err: any) {
+              console.log('[DeviceManagement] Reject device error:', err?.message);
+              Alert.alert('Error', 'Failed to remove access. Please check your connection.');
+            } finally {
+              setRejectingDeviceId(null);
             }
           },
         },
@@ -456,23 +527,39 @@ export default function DeviceManagementScreen({navigation}: any) {
                 </View>
               </View>
 
-              {/* Footer: Status + Action */}
+              {/* Footer: Status + Actions */}
               <View style={styles.userFooter}>
                 <StatusBadge status={user.deviceStatus} />
 
-                {user.deviceStatus.toUpperCase() === 'PENDING' && (
-                  <TouchableOpacity
-                    style={styles.approveBtn}
-                    onPress={() => handleApprove(user.email)}
-                    disabled={approvingEmail === user.email}
-                    activeOpacity={0.7}>
-                    {approvingEmail === user.email ? (
-                      <ActivityIndicator size="small" color="#000" />
-                    ) : (
-                      <Text style={styles.approveBtnText}>Approve</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
+                <View style={styles.actionButtonsRow}>
+                  {user.deviceStatus.toUpperCase() === 'PENDING' && (
+                    <TouchableOpacity
+                      style={styles.approveBtn}
+                      onPress={() => handleApprove(user.email)}
+                      disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
+                      activeOpacity={0.7}>
+                      {approvingEmail === user.email ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <Text style={styles.approveBtnText}>Approve</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+
+                  {user.deviceStatus.toUpperCase() !== 'REJECTED' && (
+                    <TouchableOpacity
+                      style={styles.removeAccessBtn}
+                      onPress={() => handleRejectDevice(user.deviceId, user.email)}
+                      disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
+                      activeOpacity={0.7}>
+                      {rejectingDeviceId === user.deviceId ? (
+                        <ActivityIndicator size="small" color={Colors.danger} />
+                      ) : (
+                        <Text style={styles.removeAccessBtnText}>Remove Access</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           ))
@@ -640,17 +727,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   approveBtn: {
     backgroundColor: Colors.secure,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
-    minWidth: 90,
+    minWidth: 80,
     alignItems: 'center',
   },
   approveBtnText: {
     color: '#000',
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
+  },
+  removeAccessBtn: {
+    backgroundColor: 'rgba(255, 61, 113, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 61, 113, 0.3)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    minWidth: 105,
+    alignItems: 'center',
+  },
+  removeAccessBtnText: {
+    color: Colors.danger,
+    fontSize: FontSizes.xs,
     fontWeight: '700',
   },
 });
