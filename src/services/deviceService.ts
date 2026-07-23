@@ -161,30 +161,59 @@ export async function registerDevice(info: UserRegistrationData): Promise<Regist
   }
 }
 
+// ── Clear All Auth Data (wipes local cache completely) ──
+export async function clearAllAuthData(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.DEVICE_STATUS,
+      STORAGE_KEYS.DEVICE_ID,
+      STORAGE_KEYS.REGISTRATION_DATE,
+      STORAGE_KEYS.STORED_EMAIL,
+      STORAGE_KEYS.USER_ROLE,
+      '@auth_token',
+    ]);
+    console.log('[clearAllAuthData] All local auth data wiped clean.');
+  } catch (e: any) {
+    console.log('[clearAllAuthData] Error wiping local auth:', e?.message);
+  }
+}
+
+// ── Clear Registration (used on logout or re-registration) ──
+export async function clearRegistration(): Promise<void> {
+  await clearAllAuthData();
+}
+
 // ── Check Device Status — GET /api/v1/admin/deviceStatus?deviceId=... ──
 export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus> {
   try {
     console.log('[checkDeviceStatus] Calling deviceId:', deviceId);
     const response = await fetch(`${API_BASE}/admin/deviceStatus?deviceId=${deviceId}`);
 
-    // 404 means device never registered on backend — treat as unregistered
+    // 404 means device not found on backend — wipe all local auth
     if (response.status === 404) {
-      console.log('[checkDeviceStatus] 404 — device not found on backend, clearing local cache');
-      await AsyncStorage.multiRemove([
-        '@device_auth_status',
-        '@device_auth_id',
-        '@device_auth_date',
-      ]);
+      console.log('[checkDeviceStatus] 404 — device not found on backend, wiping local auth data');
+      await clearAllAuthData();
       return 'unregistered';
     }
 
     if (!response.ok) {
-      // Other server errors — fall back to cached status
+      // Other server errors (500) — fall back to cached status
       return getStoredDeviceStatus();
     }
 
     const data = await response.json();
     console.log('[checkDeviceStatus] Raw backend response:', JSON.stringify(data));
+
+    // Handle status -1 or "Device not found" responses (device deleted from DB)
+    const isErrorOrNotFound =
+      data?.status === -1 ||
+      (typeof data?.response === 'string' && data.response.toLowerCase().includes('not found'));
+
+    if (isErrorOrNotFound) {
+      console.log('[checkDeviceStatus] Server returned status -1 / "not found" — device deleted from backend!');
+      await clearAllAuthData();
+      return 'unregistered';
+    }
 
     // Extract status string from response payload
     let rawStatus: string | null = null;
@@ -228,13 +257,4 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
     // Network failure — fall back to cached status
     return getStoredDeviceStatus();
   }
-}
-
-// ── Clear Registration (used on logout or re-registration) ──
-export async function clearRegistration(): Promise<void> {
-  await AsyncStorage.multiRemove([
-    STORAGE_KEYS.DEVICE_STATUS,
-    STORAGE_KEYS.DEVICE_ID,
-    STORAGE_KEYS.REGISTRATION_DATE,
-  ]);
 }
