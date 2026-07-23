@@ -231,6 +231,17 @@ export async function checkDeviceStatus(deviceId: string): Promise<DeviceStatus>
       rawStatus = data.status;
     }
 
+    // Sync role if backend returns role in deviceStatus response
+    const serverRole =
+      (typeof data?.response === 'object' && data?.response?.role) ||
+      data?.role ||
+      data?.response?.userRole;
+
+    if (serverRole && typeof serverRole === 'string') {
+      console.log('[checkDeviceStatus] Synced role from server:', serverRole);
+      await setStoredRole(serverRole);
+    }
+
     if (rawStatus && typeof rawStatus === 'string') {
       const lower = rawStatus.toLowerCase();
       let parsedStatus: DeviceStatus | null = null;

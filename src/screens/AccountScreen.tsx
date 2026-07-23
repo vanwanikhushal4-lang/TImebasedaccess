@@ -3,7 +3,7 @@
  * User profile, settings, and logout.
  * Shows "Device Management" option for ADMIN users.
  */
-import React, {useState, useEffect} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,9 @@ import {
   StatusBar,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
-import {getStoredRole, getStoredEmail} from '../services/deviceService';
+import {getStoredRole, getStoredEmail, getDeviceInfo, checkDeviceStatus} from '../services/deviceService';
 
 // Menu row icons (pure RN)
 const ChevronRight = () => (
@@ -51,15 +51,29 @@ export default function AccountScreen({route}: any) {
   const [userRole, setUserRole] = useState('USER');
   const [userEmail, setUserEmail] = useState('');
 
-  useEffect(() => {
-    getStoredRole().then(role => {
-      console.log('[AccountScreen] Stored user role:', role);
-      setUserRole(role);
-    });
-    getStoredEmail().then(email => {
-      setUserEmail(email);
-    });
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      (async () => {
+        const email = await getStoredEmail();
+        if (isMounted) setUserEmail(email);
+
+        // Check device status & sync latest role from server
+        try {
+          const info = await getDeviceInfo();
+          await checkDeviceStatus(info.deviceId);
+        } catch {}
+
+        const role = await getStoredRole();
+        console.log('[AccountScreen] Focused. Current user role:', role);
+        if (isMounted) setUserRole(role);
+      })();
+
+      return () => {
+        isMounted = false;
+      };
+    }, []),
+  );
 
   const isAdmin = userRole.toUpperCase() === 'ADMIN';
 
