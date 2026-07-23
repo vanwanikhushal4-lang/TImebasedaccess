@@ -23,16 +23,7 @@ import RNShare from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
-
-// ── Helpers ──
-// Removed HARDCODED mockup values to use dynamic inputs
-
-// The backend server is hard-bound to 192.168.0.157.
-// iOS Simulator can route to it directly. Android Emulator cannot, so we use the local proxy.
-// The backend server is hard-bound to 192.168.0.157 on port 9898.
-// We use the real LAN IP so physical devices on the network can connect.
-// const API_URL = 'http://45.118.160.135:9898/api/offlinetba/generatePrivateKey';
-const API_URL = 'http://192.168.0.157:9898/api/offlinetba/generatePrivateKey';
+import {GENERATE_KEY_URL as API_URL} from '../config/apiConfig';
 
 // ── Custom Wheel Picker ──
 const WheelPicker = ({ items, selectedValue, onValueChange }: { items: string[], selectedValue: string, onValueChange: (val: string) => void }) => {

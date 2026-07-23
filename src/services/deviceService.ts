@@ -10,8 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
 import {Platform} from 'react-native';
 
-// ── Configuration ──
-export const API_BASE = 'http://192.168.0.157:9898/api/v1';
+import {API_BASE} from '../config/apiConfig';
+export {API_BASE};
 
 // ── Storage Keys ──
 const STORAGE_KEYS = {

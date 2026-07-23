@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 import {getStoredEmail, setStoredRole, parseRoleFromJwt, fetchUserRoleFromApi} from '../services/deviceService';
+import {API_BASE} from '../config/apiConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const {width} = Dimensions.get('window');
@@ -120,8 +121,8 @@ export default function LoginScreen({navigation}: any) {
     }
     setLoading(true);
     try {
-      console.log('[LoginScreen] Calling POST http://192.168.0.157:9898/api/v1/auth/login');
-      const response = await fetch('http://192.168.0.157:9898/api/v1/auth/login', {
+      console.log(`[LoginScreen] Calling POST ${API_BASE}/auth/login`);
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({email: userId, password}),
