@@ -38,8 +38,8 @@ interface UserRecord {
 }
 
 // ── Status Badge Component ──
-const StatusBadge = ({status}: {status: string}) => {
-  const normalized = status.toUpperCase();
+const StatusBadge = ({status}: {status?: string}) => {
+  const normalized = (status || 'UNREGISTERED').toUpperCase();
   let bgColor = 'rgba(148, 163, 184, 0.12)';
   let textColor = Colors.textSecondary;
 
@@ -303,7 +303,7 @@ export default function DeviceManagementScreen({navigation}: any) {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleApprove = async (email: string) => {
+  const handleApprove = async (email: string, deviceId: string) => {
     Alert.alert(
       'Approve User',
       `Are you sure you want to approve ${email}?`,
@@ -315,23 +315,60 @@ export default function DeviceManagementScreen({navigation}: any) {
             setApprovingEmail(email);
             try {
               const token = await AsyncStorage.getItem('@auth_token');
-              console.log('[DeviceManagement] Approving user:', email);
-              const response = await fetch(`${API_BASE}/admin/approveUser/${email}`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              });
+              console.log('[DeviceManagement] Approving user:', email, deviceId);
 
-              const data = await response.json();
-              console.log('[DeviceManagement] Approve response:', JSON.stringify(data));
+              const candidateEndpoints = [
+                { url: `${API_BASE}/admin/approveUser/${encodeURIComponent(email)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/approveUser?email=${encodeURIComponent(email)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/approveUser?deviceId=${encodeURIComponent(deviceId)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/approveUser/${encodeURIComponent(deviceId)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/approveUser/${encodeURIComponent(email)}`, method: 'PUT' },
+                { url: `${API_BASE}/admin/approveUser/${encodeURIComponent(email)}`, method: 'GET' },
+              ];
 
-              if (response.ok || data?.status === 0) {
+              let success = false;
+              let lastMsg = 'Failed to approve user.';
+
+              for (const candidate of candidateEndpoints) {
+                try {
+                  console.log(`[DeviceManagement] Trying approve endpoint: ${candidate.method} ${candidate.url}`);
+                  const response = await fetch(candidate.url, {
+                    method: candidate.method,
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  });
+
+                  console.log(`[DeviceManagement] Response status for ${candidate.url}: ${response.status}`);
+                  if (response.status === 404 || response.status === 405) {
+                    continue;
+                  }
+
+                  let data: any = null;
+                  try {
+                    data = await response.json();
+                    console.log('[DeviceManagement] Approve response body:', JSON.stringify(data));
+                  } catch {
+                    data = null;
+                  }
+
+                  if (response.ok || data?.status === 0 || (typeof data?.response === 'string' && data.response.toLowerCase().includes('approve'))) {
+                    success = true;
+                    break;
+                  } else {
+                    lastMsg = data?.response?.message || data?.response || data?.message || `HTTP ${response.status}`;
+                  }
+                } catch (e: any) {
+                  console.log('[DeviceManagement] Attempt failed:', e?.message);
+                }
+              }
+
+              if (success) {
                 Alert.alert('Success', `${email} has been approved.`);
                 fetchUsers(); // Refresh list
               } else {
-                Alert.alert('Error', data?.response?.message || data?.response || 'Failed to approve user.');
+                Alert.alert('Approve Failed', typeof lastMsg === 'string' ? lastMsg : JSON.stringify(lastMsg));
               }
             } catch (err: any) {
               console.log('[DeviceManagement] Approve error:', err?.message);
@@ -358,50 +395,61 @@ export default function DeviceManagementScreen({navigation}: any) {
             setRejectingDeviceId(deviceId);
             try {
               const token = await AsyncStorage.getItem('@auth_token');
-              console.log('[DeviceManagement] Removing access for deviceId:', deviceId);
+              console.log('[DeviceManagement] Removing access for deviceId:', deviceId, email);
 
-              // Try POST first, fallback to GET if 405 Method Not Allowed
-              let response = await fetch(
-                `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                  },
-                },
-              );
+              const candidateEndpoints = [
+                { url: `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/rejectDevice/${encodeURIComponent(deviceId)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/rejectDevice?email=${encodeURIComponent(email)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/rejectDevice/${encodeURIComponent(email)}`, method: 'POST' },
+                { url: `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`, method: 'GET' },
+                { url: `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`, method: 'PUT' },
+                { url: `${API_BASE}/admin/rejectUser/${encodeURIComponent(email)}`, method: 'POST' },
+              ];
 
-              if (response.status === 405) {
-                console.log('[DeviceManagement] POST not allowed, trying GET for rejectDevice...');
-                response = await fetch(
-                  `${API_BASE}/admin/rejectDevice?deviceId=${encodeURIComponent(deviceId)}`,
-                  {
-                    method: 'GET',
+              let success = false;
+              let lastMsg = 'Failed to remove access.';
+
+              for (const candidate of candidateEndpoints) {
+                try {
+                  console.log(`[DeviceManagement] Trying reject endpoint: ${candidate.method} ${candidate.url}`);
+                  const response = await fetch(candidate.url, {
+                    method: candidate.method,
                     headers: {
                       'Authorization': `Bearer ${token}`,
                       'Content-Type': 'application/json',
                     },
-                  },
-                );
+                  });
+
+                  console.log(`[DeviceManagement] Response status for ${candidate.url}: ${response.status}`);
+                  if (response.status === 404 || response.status === 405) {
+                    continue;
+                  }
+
+                  let data: any = null;
+                  try {
+                    data = await response.json();
+                    console.log('[DeviceManagement] Reject response body:', JSON.stringify(data));
+                  } catch {
+                    data = null;
+                  }
+
+                  if (response.ok || data?.status === 0) {
+                    success = true;
+                    break;
+                  } else {
+                    lastMsg = data?.response?.message || data?.response || data?.message || `HTTP ${response.status}`;
+                  }
+                } catch (e: any) {
+                  console.log('[DeviceManagement] Attempt failed:', e?.message);
+                }
               }
 
-              let data: any = null;
-              try {
-                data = await response.json();
-                console.log('[DeviceManagement] Reject device response:', JSON.stringify(data));
-              } catch {
-                data = null;
-              }
-
-              if (response.ok || data?.status === 0) {
+              if (success) {
                 Alert.alert('Access Removed', `Access for ${email} has been revoked.`);
                 fetchUsers(); // Refresh list
               } else {
-                Alert.alert(
-                  'Error',
-                  data?.response?.message || data?.response || 'Failed to remove access.',
-                );
+                Alert.alert('Removal Failed', typeof lastMsg === 'string' ? lastMsg : JSON.stringify(lastMsg));
               }
             } catch (err: any) {
               console.log('[DeviceManagement] Reject device error:', err?.message);
@@ -415,8 +463,8 @@ export default function DeviceManagementScreen({navigation}: any) {
     );
   };
 
-  const pendingCount = users.filter(u => u.deviceStatus.toUpperCase() === 'PENDING').length;
-  const approvedCount = users.filter(u => u.deviceStatus.toUpperCase() === 'APPROVED').length;
+  const pendingCount = users.filter(u => (u.deviceStatus || '').toUpperCase() === 'PENDING').length;
+  const approvedCount = users.filter(u => (u.deviceStatus || '').toUpperCase() === 'APPROVED').length;
 
   const formatDate = (dateStr: string) => {
     try {
@@ -493,76 +541,79 @@ export default function DeviceManagementScreen({navigation}: any) {
           </View>
         ) : (
           /* ── User List ── */
-          users.map((user) => (
-            <View key={user.userId} style={styles.userCard}>
-              {/* Top Row: Platform icon + Email + Role */}
-              <View style={styles.userHeader}>
-                <PlatformIcon platform={user.platform} />
-                <View style={styles.userHeaderInfo}>
-                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
-                    <RoleBadge role={user.role} />
+          users.map((user) => {
+            const statusUpper = (user.deviceStatus || '').toUpperCase();
+            return (
+              <View key={user.userId} style={styles.userCard}>
+                {/* Top Row: Platform icon + Email + Role */}
+                <View style={styles.userHeader}>
+                  <PlatformIcon platform={user.platform} />
+                  <View style={styles.userHeaderInfo}>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+                      <RoleBadge role={user.role} />
+                    </View>
+                    <Text style={styles.userDevice}>{user.brand} {user.model}</Text>
                   </View>
-                  <Text style={styles.userDevice}>{user.brand} {user.model}</Text>
+                </View>
+
+                {/* Info Grid */}
+                <View style={styles.infoGrid}>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Device ID</Text>
+                    <Text style={styles.infoValue} numberOfLines={1}>{user.deviceId}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Contact</Text>
+                    <Text style={styles.infoValue}>{user.contactNo}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>OS</Text>
+                    <Text style={styles.infoValue}>{user.osVersion}</Text>
+                  </View>
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Registered</Text>
+                    <Text style={styles.infoValue}>{formatDate(user.createdAt)}</Text>
+                  </View>
+                </View>
+
+                {/* Footer: Status + Actions */}
+                <View style={styles.userFooter}>
+                  <StatusBadge status={user.deviceStatus} />
+
+                  <View style={styles.actionButtonsRow}>
+                    {statusUpper === 'PENDING' && (
+                      <TouchableOpacity
+                        style={styles.approveBtn}
+                        onPress={() => handleApprove(user.email, user.deviceId)}
+                        disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
+                        activeOpacity={0.7}>
+                        {approvingEmail === user.email ? (
+                          <ActivityIndicator size="small" color="#000" />
+                        ) : (
+                          <Text style={styles.approveBtnText}>Approve</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {statusUpper !== 'REJECTED' && (
+                      <TouchableOpacity
+                        style={styles.removeAccessBtn}
+                        onPress={() => handleRejectDevice(user.deviceId, user.email)}
+                        disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
+                        activeOpacity={0.7}>
+                        {rejectingDeviceId === user.deviceId ? (
+                          <ActivityIndicator size="small" color={Colors.danger} />
+                        ) : (
+                          <Text style={styles.removeAccessBtnText}>Remove Access</Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
-
-              {/* Info Grid */}
-              <View style={styles.infoGrid}>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Device ID</Text>
-                  <Text style={styles.infoValue} numberOfLines={1}>{user.deviceId}</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Contact</Text>
-                  <Text style={styles.infoValue}>{user.contactNo}</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>OS</Text>
-                  <Text style={styles.infoValue}>{user.osVersion}</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Registered</Text>
-                  <Text style={styles.infoValue}>{formatDate(user.createdAt)}</Text>
-                </View>
-              </View>
-
-              {/* Footer: Status + Actions */}
-              <View style={styles.userFooter}>
-                <StatusBadge status={user.deviceStatus} />
-
-                <View style={styles.actionButtonsRow}>
-                  {user.deviceStatus.toUpperCase() === 'PENDING' && (
-                    <TouchableOpacity
-                      style={styles.approveBtn}
-                      onPress={() => handleApprove(user.email)}
-                      disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
-                      activeOpacity={0.7}>
-                      {approvingEmail === user.email ? (
-                        <ActivityIndicator size="small" color="#000" />
-                      ) : (
-                        <Text style={styles.approveBtnText}>Approve</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-
-                  {user.deviceStatus.toUpperCase() !== 'REJECTED' && (
-                    <TouchableOpacity
-                      style={styles.removeAccessBtn}
-                      onPress={() => handleRejectDevice(user.deviceId, user.email)}
-                      disabled={approvingEmail === user.email || rejectingDeviceId === user.deviceId}
-                      activeOpacity={0.7}>
-                      {rejectingDeviceId === user.deviceId ? (
-                        <ActivityIndicator size="small" color={Colors.danger} />
-                      ) : (
-                        <Text style={styles.removeAccessBtnText}>Remove Access</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         <View style={{height: Spacing.xxl}} />
