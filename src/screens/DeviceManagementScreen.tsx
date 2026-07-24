@@ -258,6 +258,96 @@ export default function DeviceManagementScreen({navigation}: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [approvingEmail, setApprovingEmail] = useState<string | null>(null);
   const [rejectingDeviceId, setRejectingDeviceId] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<number | null>(null);
+
+  const handleToggleRole = async (userId: number, email: string, currentRole: string) => {
+    const currentUpper = (currentRole || 'USER').toUpperCase();
+    const targetRole = currentUpper === 'ADMIN' ? 'USER' : 'ADMIN';
+    const actionLabel = targetRole === 'ADMIN' ? 'Promote to Admin' : 'Change to User';
+
+    Alert.alert(
+      'Edit User Role',
+      `Are you sure you want to change ${email}'s role to ${targetRole}?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: actionLabel,
+          onPress: async () => {
+            setUpdatingRoleId(userId);
+            try {
+              const token = await AsyncStorage.getItem('@auth_token');
+              console.log(`[DeviceManagement] Updating role for userId ${userId} (${email}) to ${targetRole}`);
+
+              const candidateEndpoints = [
+                { url: `${API_BASE}/admin/editRole?userId=${userId}&role=${targetRole}`, method: 'PUT', body: null },
+                { url: `${API_BASE}/admin/editRole?userId=${userId}&role=${targetRole}`, method: 'POST', body: null },
+                { url: `${API_BASE}/admin/editRole?userId=${userId}`, method: 'PUT', body: JSON.stringify({role: targetRole}) },
+                { url: `${API_BASE}/admin/editRole?userId=${userId}`, method: 'POST', body: JSON.stringify({role: targetRole}) },
+                { url: `${API_BASE}/admin/editRole?userId=${userId}&userRole=${targetRole}`, method: 'POST', body: null },
+                { url: `${API_BASE}/admin/editRole?userId=${userId}&userRole=${targetRole}`, method: 'PUT', body: null },
+                { url: `${API_BASE}/admin/editRole/${userId}?role=${targetRole}`, method: 'PUT', body: null },
+                { url: `${API_BASE}/admin/editRole/${userId}?role=${targetRole}`, method: 'POST', body: null },
+              ];
+
+              let success = false;
+              let lastMsg = 'Failed to update user role.';
+
+              for (const candidate of candidateEndpoints) {
+                try {
+                  console.log(`[DeviceManagement] Trying editRole endpoint: ${candidate.method} ${candidate.url}`);
+                  const options: RequestInit = {
+                    method: candidate.method,
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  };
+                  if (candidate.body) {
+                    options.body = candidate.body;
+                  }
+
+                  const response = await fetch(candidate.url, options);
+                  console.log(`[DeviceManagement] Response status for ${candidate.url}: ${response.status}`);
+                  if (response.status === 404 || response.status === 405) {
+                    continue;
+                  }
+
+                  let data: any = null;
+                  try {
+                    data = await response.json();
+                    console.log('[DeviceManagement] editRole response body:', JSON.stringify(data));
+                  } catch {
+                    data = null;
+                  }
+
+                  if (response.ok || data?.status === 0 || (typeof data?.response === 'string' && data.response.toLowerCase().includes('success'))) {
+                    success = true;
+                    break;
+                  } else {
+                    lastMsg = data?.response?.message || data?.response || data?.message || `HTTP ${response.status}`;
+                  }
+                } catch (e: any) {
+                  console.log('[DeviceManagement] Attempt failed:', e?.message);
+                }
+              }
+
+              if (success) {
+                Alert.alert('Role Updated', `${email} is now an ${targetRole}.`);
+                fetchUsers(); // Refresh list to display updated role
+              } else {
+                Alert.alert('Update Failed', typeof lastMsg === 'string' ? lastMsg : JSON.stringify(lastMsg));
+              }
+            } catch (err: any) {
+              console.log('[DeviceManagement] editRole error:', err?.message);
+              Alert.alert('Error', 'Failed to update role. Please check your connection.');
+            } finally {
+              setUpdatingRoleId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -545,13 +635,28 @@ export default function DeviceManagementScreen({navigation}: any) {
             const statusUpper = (user.deviceStatus || '').toUpperCase();
             return (
               <View key={user.userId} style={styles.userCard}>
-                {/* Top Row: Platform icon + Email + Role */}
+                {/* Top Row: Platform icon + Email + Role + Edit Role button */}
                 <View style={styles.userHeader}>
                   <PlatformIcon platform={user.platform} />
                   <View style={styles.userHeaderInfo}>
-                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                      <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
-                      <RoleBadge role={user.role} />
+                    <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                      <View style={{flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8}}>
+                        <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+                        <RoleBadge role={user.role} />
+                      </View>
+                      <TouchableOpacity
+                        style={styles.editRoleBtn}
+                        onPress={() => handleToggleRole(user.userId, user.email, user.role)}
+                        disabled={updatingRoleId === user.userId}
+                        activeOpacity={0.7}>
+                        {updatingRoleId === user.userId ? (
+                          <ActivityIndicator size="small" color={Colors.primary} />
+                        ) : (
+                          <Text style={styles.editRoleBtnText}>
+                            {(user.role || '').toUpperCase() === 'ADMIN' ? 'Make User' : 'Make Admin'}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
                     </View>
                     <Text style={styles.userDevice}>{user.brand} {user.model}</Text>
                   </View>
@@ -809,6 +914,19 @@ const styles = StyleSheet.create({
   removeAccessBtnText: {
     color: Colors.danger,
     fontSize: FontSizes.xs,
+    fontWeight: '700',
+  },
+  editRoleBtn: {
+    backgroundColor: 'rgba(0, 180, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 180, 255, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.sm,
+  },
+  editRoleBtnText: {
+    color: Colors.primary,
+    fontSize: 10,
     fontWeight: '700',
   },
 });
