@@ -15,6 +15,7 @@ import {
   Platform,
   Modal,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
@@ -24,6 +25,16 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Colors, Spacing, FontSizes, BorderRadius} from '../theme/colors';
 import {GENERATE_KEY_URL as API_URL} from '../config/apiConfig';
+
+// ── Back Arrow Component ──
+const BackArrow = () => (
+  <View style={{width: 10, height: 18, justifyContent: 'center'}}>
+    <View style={{
+      width: 10, height: 10, borderLeftWidth: 2.5, borderBottomWidth: 2.5,
+      borderColor: Colors.primary, transform: [{rotate: '45deg'}],
+    }} />
+  </View>
+);
 
 // ── Custom Wheel Picker ──
 const WheelPicker = ({ items, selectedValue, onValueChange }: { items: string[], selectedValue: string, onValueChange: (val: string) => void }) => {
@@ -230,22 +241,34 @@ export default function AccessFormScreen({navigation}: any) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+
+      {/* Background accents */}
+      <View style={styles.bgCircle1} />
+      <View style={styles.bgCircle2} />
+
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          {paddingTop: insets.top + Spacing.lg},
+          {paddingTop: insets.top + Spacing.md},
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
 
-        {/* ── Header ── */}
+        {/* ── Top Header Row ── */}
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            style={styles.backBtn}>
-            <View style={styles.backArrow} />
+            style={styles.backBtn}
+            activeOpacity={0.7}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <BackArrow />
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
+          <Image
+            source={require('../assets/logo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
         </View>
 
         <Text style={styles.pageTitle}>Generate Access Key</Text>
@@ -486,6 +509,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  bgCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(0, 180, 255, 0.04)',
+  },
+  bgCircle2: {
+    position: 'absolute',
+    bottom: -60,
+    left: -100,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(0, 230, 118, 0.03)',
+  },
   scrollContent: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xl,
@@ -495,37 +536,36 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
+  },
+  headerLogo: {
+    width: 110,
+    height: 32,
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  backArrow: {
-    width: 10,
-    height: 10,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: Colors.primary,
-    transform: [{rotate: '45deg'}],
-    marginRight: Spacing.sm,
+    paddingVertical: 4,
   },
   backText: {
     fontSize: FontSizes.md,
     color: Colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginLeft: Spacing.sm,
   },
   pageTitle: {
-    fontSize: FontSizes.xxl,
+    fontSize: FontSizes.hero,
     color: Colors.textPrimary,
     fontWeight: '700',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+    letterSpacing: 0.5,
   },
   pageSubtitle: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     color: Colors.textSecondary,
     marginBottom: Spacing.xl,
-    lineHeight: 22,
+    lineHeight: 20,
   },
 
   // Form
