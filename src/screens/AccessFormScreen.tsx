@@ -2,7 +2,7 @@
  * AccessFormScreen — TimeBasedAccess
  * 6-field form → generates a key card → save / share as image.
  */
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Image,
+  Keyboard,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
@@ -100,8 +101,30 @@ export default function AccessFormScreen({navigation}: any) {
   const [cardGenerated, setCardGenerated] = useState(false);
   const [loading, setLoading] = useState(false);
   const cardRef = useRef<any>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      },
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      },
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleGenerate = async () => {
+    Keyboard.dismiss();
     if (!publicKey.trim() || !timeLimit.trim()) {
       Alert.alert('Required', 'Please enter both public key and time limit.');
       return;
@@ -239,6 +262,7 @@ export default function AccessFormScreen({navigation}: any) {
     <KeyboardAvoidingView 
       style={styles.screen} 
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
@@ -247,12 +271,17 @@ export default function AccessFormScreen({navigation}: any) {
       <View style={styles.bgCircle2} />
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[
           styles.scrollContent,
-          {paddingTop: insets.top + Spacing.md},
+          {
+            paddingTop: insets.top + Spacing.md,
+            paddingBottom: keyboardHeight > 0 ? keyboardHeight + 80 : insets.bottom + Spacing.xl,
+          },
         ]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}>
 
         {/* ── Top Header Row ── */}
         <View style={styles.headerRow}>
@@ -303,6 +332,11 @@ export default function AccessFormScreen({navigation}: any) {
             value={atmIp}
             onChangeText={setAtmIp}
             keyboardType="numbers-and-punctuation"
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ y: 100, animated: true });
+              }, 150);
+            }}
           />
         </View>
 
@@ -319,6 +353,11 @@ export default function AccessFormScreen({navigation}: any) {
             onChangeText={setEngineerEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ y: 200, animated: true });
+              }, 150);
+            }}
           />
         </View>
 
@@ -334,6 +373,11 @@ export default function AccessFormScreen({navigation}: any) {
             value={publicKey}
             onChangeText={setPublicKey}
             autoCapitalize="characters"
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollTo({ y: 320, animated: true });
+              }, 150);
+            }}
           />
         </View>
         
