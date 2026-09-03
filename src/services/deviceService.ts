@@ -195,7 +195,7 @@ export async function fetchUserRoleFromApi(email: string, token: string): Promis
 // ── Register Device — POST /api/v1/register/createUser ──
 export async function registerDevice(info: UserRegistrationData): Promise<RegistrationResponse> {
   try {
-    console.log('[registerDevice] Calling:', `http://192.168.0.157:9898/api/v1/register/createUser`);
+    console.log('[registerDevice] Calling:', `${API_BASE}/register/createUser`);
     console.log('[registerDevice] Payload:', JSON.stringify({...info, password: '***'}));
 
     const payload = {...info, role: info.role || 'USER'};

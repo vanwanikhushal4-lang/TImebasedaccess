@@ -3,9 +3,9 @@ import {Platform} from 'react-native';
 /**
  * Central API Configuration
  * All devices (Android Emulator, Physical Android, Physical iPhone, iOS Simulator)
- * connect directly to the backend host at 192.168.0.157:9898.
+ * connect directly to the backend host at 45.118.160.135:9898.
  */
-export const SERVER_HOST = '192.168.0.157';
+export const SERVER_HOST = '45.118.160.135';
 export const SERVER_PORT = '9898';
 
 export const HOST_IP = SERVER_HOST;
